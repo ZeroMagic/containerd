@@ -31,6 +31,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -158,6 +159,10 @@ func (r *Runc) Create(context context.Context, id, bundle string, opts *CreateOp
 		}
 		return nil
 	}
+
+	//hack1
+	logrus.FieldLogger(logrus.New()).Infof("[Runc create]: ", cmd)
+
 	ec, err := Monitor.Start(cmd)
 	if err != nil {
 		return err
