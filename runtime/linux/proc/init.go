@@ -197,6 +197,10 @@ func New(context context.Context, path, workDir, runtimeRoot, namespace, criu st
 	if socket != nil {
 		opts.ConsoleSocket = socket
 	}
+
+	//hack1
+	log.G(context).Infof("[linux plugin/proc/init]: r: ", r, "\nopts: ", opts)
+
 	if err := p.runtime.Create(context, r.ID, r.Bundle, opts); err != nil {
 		return nil, p.runtimeError(err, "OCI runtime create failed")
 	}
