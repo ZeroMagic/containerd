@@ -2108,10 +2108,8 @@ const (
 	TUNSETVNETLE                         = 0x400454dc
 	UDF_SUPER_MAGIC                      = 0x15013346
 	UMOUNT_NOFOLLOW                      = 0x8
-	USBDEVICE_SUPER_MAGIC                = 0x9fa2
 	UTIME_NOW                            = 0x3fffffff
 	UTIME_OMIT                           = 0x3ffffffe
-	V9FS_MAGIC                           = 0x1021997
 	VDISCARD                             = 0xd
 	VEOF                                 = 0x4
 	VEOL                                 = 0xb
