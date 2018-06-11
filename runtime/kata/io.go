@@ -14,15 +14,36 @@
    limitations under the License.
 */
 
-package main
+package kata
 
 import (
-	_ "github.com/containerd/aufs"
-	_ "github.com/containerd/containerd/metrics/cgroups"
-	_ "github.com/containerd/containerd/runtime/linux"
-	_ "github.com/containerd/containerd/snapshots/native"
-	_ "github.com/containerd/containerd/snapshots/overlay"
-    _ "github.com/containerd/zfs"
-    
-    _ "github.com/containerd/containerd/runtime/kata"
+	"context"
+	"fmt"
+	"net"
+
+	"github.com/containerd/containerd/runtime"
 )
+
+type pipeSet struct {
+	src    runtime.IO
+	stdin  net.Conn
+	stdout net.Conn
+	stderr net.Conn
+}
+
+// NewIO connects to the provided pipe addresses
+func newPipeSet(ctx context.Context, io runtime.IO) (*pipeSet, error) {
+	
+	fmt.Println("pipe is not implemented")
+
+	return &pipeSet{}, nil
+}
+
+// Close terminates all successfully dialed IO connections
+func (p *pipeSet) Close() {
+	for _, cn := range []net.Conn{p.stdin, p.stdout, p.stderr} {
+		if cn != nil {
+			cn.Close()
+		}
+	}
+}
