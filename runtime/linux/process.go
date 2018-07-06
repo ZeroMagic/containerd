@@ -28,6 +28,9 @@ import (
 	shim "github.com/containerd/containerd/runtime/shim/v1"
 	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
+	"github.com/stevvooe/ttrpc"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Process implements a linux process
@@ -38,6 +41,7 @@ type Process struct {
 
 // ID of the process
 func (p *Process) ID() string {
+	logrus.FieldLogger(logrus.New()).Info("Process ID")
 	return p.id
 }
 
@@ -45,6 +49,7 @@ func (p *Process) ID() string {
 //
 // Unable to kill all processes in the task using this method on a process
 func (p *Process) Kill(ctx context.Context, signal uint32, _ bool) error {
+	logrus.FieldLogger(logrus.New()).Info("Process Kill")
 	_, err := p.t.shim.Kill(ctx, &shim.KillRequest{
 		Signal: signal,
 		ID:     p.id,
@@ -57,6 +62,7 @@ func (p *Process) Kill(ctx context.Context, signal uint32, _ bool) error {
 
 // State of process
 func (p *Process) State(ctx context.Context) (runtime.State, error) {
+	logrus.FieldLogger(logrus.New()).Info("Process State")
 	// use the container status for the status of the process
 	response, err := p.t.shim.State(ctx, &shim.StateRequest{
 		ID: p.id,
@@ -97,6 +103,7 @@ func (p *Process) State(ctx context.Context) (runtime.State, error) {
 
 // ResizePty changes the side of the process's PTY to the provided width and height
 func (p *Process) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
+	logrus.FieldLogger(logrus.New()).Info("Process ResizePty")
 	_, err := p.t.shim.ResizePty(ctx, &shim.ResizePtyRequest{
 		ID:     p.id,
 		Width:  size.Width,
@@ -110,6 +117,7 @@ func (p *Process) ResizePty(ctx context.Context, size runtime.ConsoleSize) error
 
 // CloseIO closes the provided IO pipe for the process
 func (p *Process) CloseIO(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("Process CloseIO")
 	_, err := p.t.shim.CloseIO(ctx, &shim.CloseIORequest{
 		ID:    p.id,
 		Stdin: true,
@@ -122,6 +130,7 @@ func (p *Process) CloseIO(ctx context.Context) error {
 
 // Start the process
 func (p *Process) Start(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("Process Start")
 	r, err := p.t.shim.Start(ctx, &shim.StartRequest{
 		ID: p.id,
 	})
@@ -138,6 +147,7 @@ func (p *Process) Start(ctx context.Context) error {
 
 // Wait on the process to exit and return the exit status and timestamp
 func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Info("Process Wait")
 	r, err := p.t.shim.Wait(ctx, &shim.WaitRequest{
 		ID: p.id,
 	})
