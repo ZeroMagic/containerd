@@ -40,6 +40,9 @@ import (
 	google_protobuf "github.com/gogo/protobuf/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
+
 )
 
 // InitPidFile name of the file that contains the init pid
@@ -240,21 +243,25 @@ func New(context context.Context, path, workDir, runtimeRoot, namespace, criu st
 
 // Wait for the process to exit
 func (p *Init) Wait() {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Wait", p.id)
 	<-p.waitBlock
 }
 
 // ID of the process
 func (p *Init) ID() string {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Wait", p.id)
 	return p.id
 }
 
 // Pid of the process
 func (p *Init) Pid() int {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Pid", p.id)
 	return p.pid
 }
 
 // ExitStatus of the process
 func (p *Init) ExitStatus() int {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, ExitStatus", p.id)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.status
@@ -262,6 +269,7 @@ func (p *Init) ExitStatus() int {
 
 // ExitedAt at time when the process exited
 func (p *Init) ExitedAt() time.Time {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, ExitedAt", p.id)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.exited
@@ -269,6 +277,7 @@ func (p *Init) ExitedAt() time.Time {
 
 // Status of the process
 func (p *Init) Status(ctx context.Context) (string, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Status", p.id)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	c, err := p.runtime.State(ctx, p.id)
@@ -282,11 +291,13 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 }
 
 func (p *Init) start(context context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, start", p.id)
 	err := p.runtime.Start(context, p.id)
 	return p.runtimeError(err, "OCI runtime start failed")
 }
 
 func (p *Init) setExited(status int) {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, setExited", p.id)
 	p.exited = time.Now()
 	p.status = status
 	p.platform.ShutdownConsole(context.Background(), p.console)
@@ -294,6 +305,7 @@ func (p *Init) setExited(status int) {
 }
 
 func (p *Init) delete(context context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, delete", p.id)
 	p.KillAll(context)
 	p.wg.Wait()
 	err := p.runtime.Delete(context, p.id, nil)
@@ -325,6 +337,7 @@ func (p *Init) delete(context context.Context) error {
 }
 
 func (p *Init) resize(ws console.WinSize) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, resize", p.id)
 	if p.console == nil {
 		return nil
 	}
@@ -332,16 +345,19 @@ func (p *Init) resize(ws console.WinSize) error {
 }
 
 func (p *Init) pause(context context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, pause", p.id)
 	err := p.runtime.Pause(context, p.id)
 	return p.runtimeError(err, "OCI runtime pause failed")
 }
 
 func (p *Init) resume(context context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, resume", p.id)
 	err := p.runtime.Resume(context, p.id)
 	return p.runtimeError(err, "OCI runtime resume failed")
 }
 
 func (p *Init) kill(context context.Context, signal uint32, all bool) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, kill", p.id)
 	err := p.runtime.Kill(context, p.id, int(signal), &runc.KillOpts{
 		All: all,
 	})
@@ -350,6 +366,7 @@ func (p *Init) kill(context context.Context, signal uint32, all bool) error {
 
 // KillAll processes belonging to the init process
 func (p *Init) KillAll(context context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, KillAll", p.id)
 	err := p.runtime.Kill(context, p.id, int(syscall.SIGKILL), &runc.KillOpts{
 		All: true,
 	})
@@ -358,17 +375,20 @@ func (p *Init) KillAll(context context.Context) error {
 
 // Stdin of the process
 func (p *Init) Stdin() io.Closer {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Stdin", p.id)
 	return p.stdin
 }
 
 // Runtime returns the OCI runtime configured for the init process
 func (p *Init) Runtime() *runc.Runc {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Runtime", p.id)
 	return p.runtime
 }
 
 // exec returns a new exec'd process
 func (p *Init) exec(context context.Context, path string, r *ExecConfig) (Process, error) {
 	// process exec request
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, exec", p.id)
 	var spec specs.Process
 	if err := json.Unmarshal(r.Spec.Value, &spec); err != nil {
 		return nil, err
@@ -393,6 +413,7 @@ func (p *Init) exec(context context.Context, path string, r *ExecConfig) (Proces
 }
 
 func (p *Init) checkpoint(context context.Context, r *CheckpointConfig) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, checkpoint", p.id)
 	var options runctypes.CheckpointOptions
 	if r.Options != nil {
 		v, err := typeurl.UnmarshalAny(r.Options)
@@ -426,6 +447,7 @@ func (p *Init) checkpoint(context context.Context, r *CheckpointConfig) error {
 }
 
 func (p *Init) update(context context.Context, r *google_protobuf.Any) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, update", p.id)
 	var resources specs.LinuxResources
 	if err := json.Unmarshal(r.Value, &resources); err != nil {
 		return err
@@ -435,10 +457,12 @@ func (p *Init) update(context context.Context, r *google_protobuf.Any) error {
 
 // Stdio of the process
 func (p *Init) Stdio() Stdio {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, Stdio", p.id)
 	return p.stdio
 }
 
 func (p *Init) runtimeError(rErr error, msg string) error {
+	logrus.FieldLogger(logrus.New()).Infof("Init %v, runtimeError", p.id)
 	if rErr == nil {
 		return nil
 	}

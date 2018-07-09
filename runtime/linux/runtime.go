@@ -154,11 +154,13 @@ type Runtime struct {
 
 // ID of the runtime
 func (r *Runtime) ID() string {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, ID", r.state)
 	return pluginID
 }
 
 // Create a new task
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (_ runtime.Task, err error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, Create", r.state)
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -302,6 +304,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 
 // Delete a task removing all on disk state
 func (r *Runtime) Delete(ctx context.Context, c runtime.Task) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, Delete", r.state)
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -349,10 +352,12 @@ func (r *Runtime) Delete(ctx context.Context, c runtime.Task) (*runtime.Exit, er
 
 // Tasks returns all tasks known to the runtime
 func (r *Runtime) Tasks(ctx context.Context) ([]runtime.Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, Tasks", r.state)
 	return r.tasks.GetAll(ctx)
 }
 
 func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, restoreTasks", r.state)
 	dir, err := ioutil.ReadDir(r.state)
 	if err != nil {
 		return nil, err
@@ -375,10 +380,12 @@ func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
 
 // Get a specific task by task id
 func (r *Runtime) Get(ctx context.Context, id string) (runtime.Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, Get", r.state)
 	return r.tasks.Get(ctx, id)
 }
 
 func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, loadTasks", r.state)
 	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
 	if err != nil {
 		return nil, err
@@ -434,6 +441,7 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 }
 
 func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, id string, pid int) error {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, cleanupAfterDeadShim", r.state)
 	ctx = namespaces.WithNamespace(ctx, ns)
 	if err := r.terminate(ctx, bundle, ns, id); err != nil {
 		if r.config.ShimDebug {
@@ -468,6 +476,7 @@ func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, 
 }
 
 func (r *Runtime) terminate(ctx context.Context, bundle *bundle, ns, id string) error {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, terminate", r.state)
 	rt, err := r.getRuntime(ctx, ns, id)
 	if err != nil {
 		return err
@@ -487,6 +496,7 @@ func (r *Runtime) terminate(ctx context.Context, bundle *bundle, ns, id string) 
 }
 
 func (r *Runtime) getRuntime(ctx context.Context, ns, id string) (*runc.Runc, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, getRuntime", r.state)
 	ropts, err := r.getRuncOptions(ctx, id)
 	if err != nil {
 		return nil, err
@@ -515,6 +525,7 @@ func (r *Runtime) getRuntime(ctx context.Context, ns, id string) (*runc.Runc, er
 }
 
 func (r *Runtime) getRuncOptions(ctx context.Context, id string) (*runctypes.RuncOptions, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, getRuncOptions", r.state)
 	var container containers.Container
 
 	if err := r.db.View(func(tx *bolt.Tx) error {

@@ -108,6 +108,7 @@ type Service struct {
 
 // Create a new initial process and container with the underlying OCI runtime
 func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*shimapi.CreateTaskResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Create", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -158,6 +159,7 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*sh
 
 // Start a process
 func (s *Service) Start(ctx context.Context, r *shimapi.StartRequest) (*shimapi.StartResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Start", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[r.ID]
@@ -175,6 +177,7 @@ func (s *Service) Start(ctx context.Context, r *shimapi.StartRequest) (*shimapi.
 
 // Delete the initial process and container
 func (s *Service) Delete(ctx context.Context, r *ptypes.Empty) (*shimapi.DeleteResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Delete", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[s.id]
@@ -195,6 +198,7 @@ func (s *Service) Delete(ctx context.Context, r *ptypes.Empty) (*shimapi.DeleteR
 
 // DeleteProcess deletes an exec'd process
 func (s *Service) DeleteProcess(ctx context.Context, r *shimapi.DeleteProcessRequest) (*shimapi.DeleteResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, DeleteProcess", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if r.ID == s.id {
@@ -217,6 +221,7 @@ func (s *Service) DeleteProcess(ctx context.Context, r *shimapi.DeleteProcessReq
 
 // Exec an additional process inside the container
 func (s *Service) Exec(ctx context.Context, r *shimapi.ExecProcessRequest) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Exec", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -246,6 +251,7 @@ func (s *Service) Exec(ctx context.Context, r *shimapi.ExecProcessRequest) (*pty
 
 // ResizePty of a process
 func (s *Service) ResizePty(ctx context.Context, r *shimapi.ResizePtyRequest) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, ResizePty", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if r.ID == "" {
@@ -267,6 +273,7 @@ func (s *Service) ResizePty(ctx context.Context, r *shimapi.ResizePtyRequest) (*
 
 // State returns runtime state information for a process
 func (s *Service) State(ctx context.Context, r *shimapi.StateRequest) (*shimapi.StateResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, State", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[r.ID]
@@ -307,6 +314,7 @@ func (s *Service) State(ctx context.Context, r *shimapi.StateRequest) (*shimapi.
 
 // Pause the container
 func (s *Service) Pause(ctx context.Context, r *ptypes.Empty) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Pause", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[s.id]
@@ -321,6 +329,7 @@ func (s *Service) Pause(ctx context.Context, r *ptypes.Empty) (*ptypes.Empty, er
 
 // Resume the container
 func (s *Service) Resume(ctx context.Context, r *ptypes.Empty) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Resume", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[s.id]
@@ -335,6 +344,7 @@ func (s *Service) Resume(ctx context.Context, r *ptypes.Empty) (*ptypes.Empty, e
 
 // Kill a process with the provided signal
 func (s *Service) Kill(ctx context.Context, r *shimapi.KillRequest) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Kill", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if r.ID == "" {
@@ -360,6 +370,7 @@ func (s *Service) Kill(ctx context.Context, r *shimapi.KillRequest) (*ptypes.Emp
 
 // ListPids returns all pids inside the container
 func (s *Service) ListPids(ctx context.Context, r *shimapi.ListPidsRequest) (*shimapi.ListPidsResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, ListPids", s.id)
 	pids, err := s.getContainerPids(ctx, r.ID)
 	if err != nil {
 		return nil, errdefs.ToGRPC(err)
@@ -391,6 +402,7 @@ func (s *Service) ListPids(ctx context.Context, r *shimapi.ListPidsRequest) (*sh
 
 // CloseIO of a process
 func (s *Service) CloseIO(ctx context.Context, r *shimapi.CloseIORequest) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, CloseIO", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[r.ID]
@@ -407,6 +419,7 @@ func (s *Service) CloseIO(ctx context.Context, r *shimapi.CloseIORequest) (*ptyp
 
 // Checkpoint the container
 func (s *Service) Checkpoint(ctx context.Context, r *shimapi.CheckpointTaskRequest) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Checkpoint", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[s.id]
@@ -424,6 +437,7 @@ func (s *Service) Checkpoint(ctx context.Context, r *shimapi.CheckpointTaskReque
 
 // ShimInfo returns shim information such as the shim's pid
 func (s *Service) ShimInfo(ctx context.Context, r *ptypes.Empty) (*shimapi.ShimInfoResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, ShimInfo", s.id)
 	return &shimapi.ShimInfoResponse{
 		ShimPid: uint32(os.Getpid()),
 	}, nil
@@ -431,6 +445,7 @@ func (s *Service) ShimInfo(ctx context.Context, r *ptypes.Empty) (*shimapi.ShimI
 
 // Update a running container
 func (s *Service) Update(ctx context.Context, r *shimapi.UpdateTaskRequest) (*ptypes.Empty, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Update", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[s.id]
@@ -445,6 +460,7 @@ func (s *Service) Update(ctx context.Context, r *shimapi.UpdateTaskRequest) (*pt
 
 // Wait for a process to exit
 func (s *Service) Wait(ctx context.Context, r *shimapi.WaitRequest) (*shimapi.WaitResponse, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, Wait", s.id)
 	s.mu.Lock()
 	p := s.processes[r.ID]
 	s.mu.Unlock()
@@ -460,12 +476,14 @@ func (s *Service) Wait(ctx context.Context, r *shimapi.WaitRequest) (*shimapi.Wa
 }
 
 func (s *Service) processExits() {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, processExits", s.id)
 	for e := range s.ec {
 		s.checkProcesses(e)
 	}
 }
 
 func (s *Service) checkProcesses(e runc.Exit) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, checkProcesses", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, p := range s.processes {
@@ -491,6 +509,7 @@ func (s *Service) checkProcesses(e runc.Exit) {
 }
 
 func (s *Service) getContainerPids(ctx context.Context, id string) ([]uint32, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, getContainerPids", s.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p := s.processes[s.id]
@@ -510,6 +529,7 @@ func (s *Service) getContainerPids(ctx context.Context, id string) ([]uint32, er
 }
 
 func (s *Service) forward(publisher events.Publisher) {
+	logrus.FieldLogger(logrus.New()).Infof("Service %v, forward", s.id)
 	for e := range s.events {
 		if err := publisher.Publish(s.context, getTopic(s.context, e), e); err != nil {
 			log.G(s.context).WithError(err).Error("post event")
@@ -518,6 +538,7 @@ func (s *Service) forward(publisher events.Publisher) {
 }
 
 func getTopic(ctx context.Context, e interface{}) string {
+	logrus.FieldLogger(logrus.New()).Infof("Service getTopic")
 	switch e.(type) {
 	case *eventstypes.TaskCreate:
 		return runtime.TaskCreateEventTopic

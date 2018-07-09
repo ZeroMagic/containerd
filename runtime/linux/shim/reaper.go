@@ -26,6 +26,8 @@ import (
 	"github.com/containerd/containerd/sys"
 	runc "github.com/containerd/go-runc"
 	"github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 // ErrNoSuchProcess is returned when the process no longer exists
@@ -67,6 +69,7 @@ type Monitor struct {
 
 // Start starts the command a registers the process with the reaper
 func (m *Monitor) Start(c *exec.Cmd) (chan runc.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Monitor Start")
 	ec := m.Subscribe()
 	if err := c.Start(); err != nil {
 		m.Unsubscribe(ec)
@@ -79,6 +82,7 @@ func (m *Monitor) Start(c *exec.Cmd) (chan runc.Exit, error) {
 // User should rely on the value of the exit status to determine if the
 // command was successful or not.
 func (m *Monitor) Wait(c *exec.Cmd, ec chan runc.Exit) (int, error) {
+	logrus.FieldLogger(logrus.New()).Infof("Monitor Wait")
 	for e := range ec {
 		if e.Pid == c.Process.Pid {
 			// make sure we flush all IO
@@ -94,6 +98,7 @@ func (m *Monitor) Wait(c *exec.Cmd, ec chan runc.Exit) (int, error) {
 
 // Subscribe to process exit changes
 func (m *Monitor) Subscribe() chan runc.Exit {
+	logrus.FieldLogger(logrus.New()).Infof("Monitor Subscribe")
 	c := make(chan runc.Exit, bufferSize)
 	m.Lock()
 	m.subscribers[c] = struct{}{}
@@ -103,6 +108,7 @@ func (m *Monitor) Subscribe() chan runc.Exit {
 
 // Unsubscribe to process exit changes
 func (m *Monitor) Unsubscribe(c chan runc.Exit) {
+	logrus.FieldLogger(logrus.New()).Infof("Monitor Unsubscribe")
 	m.Lock()
 	delete(m.subscribers, c)
 	close(c)
