@@ -79,12 +79,13 @@ func newTask(id, namespace string, pid int, shim *client.Client, monitor runtime
 
 // ID of the task
 func (t *Task) ID() string {
+	logrus.FieldLogger(logrus.New()).Infof("task %v ID", t.id)
 	return t.id
 }
 
 // Info returns task information about the runtime and namespace
 func (t *Task) Info() runtime.TaskInfo {
-	logrus.FieldLogger(logrus.New()).Info("task Info")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Info", t.id)
 	return runtime.TaskInfo{
 		ID:        t.id,
 		Runtime:   pluginID,
@@ -94,7 +95,7 @@ func (t *Task) Info() runtime.TaskInfo {
 
 // Start the task
 func (t *Task) Start(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task Start")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Start", t.id)
 	t.mu.Lock()
 	hasCgroup := t.cg != nil
 	t.mu.Unlock()
@@ -126,7 +127,7 @@ func (t *Task) Start(ctx context.Context) error {
 
 // State returns runtime information for the task
 func (t *Task) State(ctx context.Context) (runtime.State, error) {
-	logrus.FieldLogger(logrus.New()).Info("task State")
+	logrus.FieldLogger(logrus.New()).Infof("task %v State", t.id)
 	response, err := t.shim.State(ctx, &shim.StateRequest{
 		ID: t.id,
 	})
@@ -163,7 +164,7 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 
 // Pause the task and all processes
 func (t *Task) Pause(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task Pause")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Pause", t.id)
 	if _, err := t.shim.Pause(ctx, empty); err != nil {
 		return errdefs.FromGRPC(err)
 	}
@@ -175,7 +176,7 @@ func (t *Task) Pause(ctx context.Context) error {
 
 // Resume the task and all processes
 func (t *Task) Resume(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task Resume")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Resume", t.id)
 	if _, err := t.shim.Resume(ctx, empty); err != nil {
 		return errdefs.FromGRPC(err)
 	}
@@ -189,7 +190,7 @@ func (t *Task) Resume(ctx context.Context) error {
 //
 // Optionally send the signal to all processes that are a child of the task
 func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
-	logrus.FieldLogger(logrus.New()).Info("task Kill")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Kill", t.id)
 	if _, err := t.shim.Kill(ctx, &shim.KillRequest{
 		ID:     t.id,
 		Signal: signal,
@@ -202,7 +203,7 @@ func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
 
 // Exec creates a new process inside the task
 func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runtime.Process, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Exec")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Exec", t.id)
 	if err := identifiers.Validate(id); err != nil {
 		return nil, errors.Wrapf(err, "invalid exec id")
 	}
@@ -225,7 +226,7 @@ func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runt
 
 // Pids returns all system level process ids running inside the task
 func (t *Task) Pids(ctx context.Context) ([]runtime.ProcessInfo, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Pids")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Pids", t.id)
 	resp, err := t.shim.ListPids(ctx, &shim.ListPidsRequest{
 		ID: t.id,
 	})
@@ -244,7 +245,7 @@ func (t *Task) Pids(ctx context.Context) ([]runtime.ProcessInfo, error) {
 
 // ResizePty changes the side of the task's PTY to the provided width and height
 func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
-	logrus.FieldLogger(logrus.New()).Info("task ResizePty")
+	logrus.FieldLogger(logrus.New()).Infof("task %v ResizePty", t.id)
 	_, err := t.shim.ResizePty(ctx, &shim.ResizePtyRequest{
 		ID:     t.id,
 		Width:  size.Width,
@@ -258,7 +259,7 @@ func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 
 // CloseIO closes the provided IO on the task
 func (t *Task) CloseIO(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task CloseIO")
+	logrus.FieldLogger(logrus.New()).Infof("task %v CloseIO", t.id)
 	_, err := t.shim.CloseIO(ctx, &shim.CloseIORequest{
 		ID:    t.id,
 		Stdin: true,
@@ -271,7 +272,7 @@ func (t *Task) CloseIO(ctx context.Context) error {
 
 // Checkpoint creates a system level dump of the task and process information that can be later restored
 func (t *Task) Checkpoint(ctx context.Context, path string, options *types.Any) error {
-	logrus.FieldLogger(logrus.New()).Info("task Checkpoint")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Checkpoint", t.id)
 	r := &shim.CheckpointTaskRequest{
 		Path:    path,
 		Options: options,
@@ -287,7 +288,7 @@ func (t *Task) Checkpoint(ctx context.Context, path string, options *types.Any) 
 
 // DeleteProcess removes the provided process from the task and deletes all on disk state
 func (t *Task) DeleteProcess(ctx context.Context, id string) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("task DeleteProcess")
+	logrus.FieldLogger(logrus.New()).Infof("task %v DeleteProcess", t.id)
 	r, err := t.shim.DeleteProcess(ctx, &shim.DeleteProcessRequest{
 		ID: id,
 	})
@@ -303,7 +304,7 @@ func (t *Task) DeleteProcess(ctx context.Context, id string) (*runtime.Exit, err
 
 // Update changes runtime information of a running task
 func (t *Task) Update(ctx context.Context, resources *types.Any) error {
-	logrus.FieldLogger(logrus.New()).Info("task Update")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Update", t.id)
 	if _, err := t.shim.Update(ctx, &shim.UpdateTaskRequest{
 		Resources: resources,
 	}); err != nil {
@@ -314,7 +315,7 @@ func (t *Task) Update(ctx context.Context, resources *types.Any) error {
 
 // Process returns a specific process inside the task by the process id
 func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Process")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Process", t.id)
 	p := &Process{
 		id: id,
 		t:  t,
@@ -327,7 +328,7 @@ func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) 
 
 // Metrics returns runtime specific system level metric information for the task
 func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Metrics")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Metrics", t.id)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.cg == nil {
@@ -342,7 +343,7 @@ func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
 
 // Cgroup returns the underlying cgroup for a linux task
 func (t *Task) Cgroup() (cgroups.Cgroup, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Cgroup")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Cgroup", t.id)
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.cg == nil {
@@ -353,7 +354,7 @@ func (t *Task) Cgroup() (cgroups.Cgroup, error) {
 
 // Wait for the task to exit returning the status and timestamp
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Wait")
+	logrus.FieldLogger(logrus.New()).Infof("task %v Wait", t.id)
 	r, err := t.shim.Wait(ctx, &shim.WaitRequest{
 		ID: t.id,
 	})

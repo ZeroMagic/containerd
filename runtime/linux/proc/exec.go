@@ -36,6 +36,8 @@ import (
 	runc "github.com/containerd/go-runc"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 type execProcess struct {
@@ -61,32 +63,38 @@ type execProcess struct {
 }
 
 func (e *execProcess) Wait() {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, Wait", e.id)
 	<-e.waitBlock
 }
 
 func (e *execProcess) ID() string {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, ID", e.id)
 	return e.id
 }
 
 func (e *execProcess) Pid() int {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, Pid", e.id)
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.pid
 }
 
 func (e *execProcess) ExitStatus() int {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, ExitStatus", e.id)
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.status
 }
 
 func (e *execProcess) ExitedAt() time.Time {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, ExitedAt", e.id)
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.exited
 }
 
 func (e *execProcess) setExited(status int) {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, setExited", e.id)
 	e.status = status
 	e.exited = time.Now()
 	e.parent.platform.ShutdownConsole(context.Background(), e.console)
@@ -94,6 +102,7 @@ func (e *execProcess) setExited(status int) {
 }
 
 func (e *execProcess) delete(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, delete", e.id)
 	e.wg.Wait()
 	if e.io != nil {
 		for _, c := range e.closers {
@@ -108,6 +117,7 @@ func (e *execProcess) delete(ctx context.Context) error {
 }
 
 func (e *execProcess) resize(ws console.WinSize) error {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, resize", e.id)
 	if e.console == nil {
 		return nil
 	}
@@ -115,6 +125,7 @@ func (e *execProcess) resize(ws console.WinSize) error {
 }
 
 func (e *execProcess) kill(ctx context.Context, sig uint32, _ bool) error {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, kill", e.id)
 	pid := e.pid
 	if pid != 0 {
 		if err := unix.Kill(pid, syscall.Signal(sig)); err != nil {
@@ -125,14 +136,17 @@ func (e *execProcess) kill(ctx context.Context, sig uint32, _ bool) error {
 }
 
 func (e *execProcess) Stdin() io.Closer {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, Stdin", e.id)
 	return e.stdin
 }
 
-func (e *execProcess) Stdio() proc.Stdio {
+func (e *execProcess) Stdio() Stdio {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, Stdio", e.id)
 	return e.stdio
 }
 
 func (e *execProcess) start(ctx context.Context) (err error) {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, start", e.id)
 	var (
 		socket  *runc.Socket
 		pidfile = filepath.Join(e.path, fmt.Sprintf("%s.pid", e.id))
@@ -201,6 +215,7 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 }
 
 func (e *execProcess) Status(ctx context.Context) (string, error) {
+	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, Status", e.id)
 	s, err := e.parent.Status(ctx)
 	if err != nil {
 		return "", err
