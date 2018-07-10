@@ -274,6 +274,7 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 		}
 		return "", errors.Wrap(err, "OCI runtime state failed")
 	}
+	logrus.FieldLogger(logrus.New()).Infof("container status: %v", status.State.State)
 	return string(status.State.State), nil
 }
 
