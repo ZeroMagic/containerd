@@ -285,6 +285,18 @@ func (p *Init) Wait() {
 		return 
 	}
 	p.exitStatus = int(exitCode)
+
+	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
+		return 
+	}
+
+	_, err = vc.StopSandbox(p.sandbox.ID())
+	if err != nil {
+		logrus.FieldLogger(logrus.New()).Infof("failed to stop sandbox, %v", err)
+		return 
+	}
 }
 
 func (p *Init) resize(ws console.WinSize) error {
@@ -308,16 +320,6 @@ func (p *Init) delete(ctx context.Context) error {
 		return errors.Wrap(err, "failed to delete container")
 	}
 
-	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to stop container")
-	}
-
-	_, err = vc.StopSandbox(p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to stop sandbox")
-	}
-
 	return nil
 }
 
@@ -326,16 +328,6 @@ func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 	err := server.KillContainer(p.sandbox.ID(), p.sandbox.ID(), syscall.Signal(signal), all)
 	if err != nil {
 		return errors.Wrap(err, "failed to kill container")
-	}
-
-	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to stop container")
-	}
-
-	_, err = vc.StopSandbox(p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to stop sandbox")
 	}
 
 	return nil
