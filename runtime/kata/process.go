@@ -26,6 +26,8 @@ import (
 	errors "github.com/pkg/errors"
 
 	"github.com/containerd/containerd/runtime/kata/proc"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Process implements containerd.Process and containerd.State
@@ -46,6 +48,8 @@ func (p *Process) State(ctx context.Context) (runtime.State, error) {
 	if err != nil {
 		return runtime.State{}, errors.Wrap(err, "process state error")
 	}
+
+	logrus.FieldLogger(logrus.New()).Infof("PPPP process state %v", state)
 
 	var status runtime.Status
 	switch state {
@@ -75,6 +79,7 @@ func (p *Process) State(ctx context.Context) (runtime.State, error) {
 
 // Kill signals a container
 func (p *Process) Kill(ctx context.Context, signal uint32, _ bool) error {
+	logrus.FieldLogger(logrus.New()).Info("PPPP process kill")
 	process := p.t.processList[p.t.id]
 	err := process.Kill(ctx, signal, false)
 	if err != nil {
@@ -113,6 +118,7 @@ func (p *Process) CloseIO(ctx context.Context) error {
 
 // Start the container's user defined process
 func (p *Process) Start(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("PPPP process start")
 	process := p.t.processList[p.id]
 	err := process.(*proc.Init).Start(ctx)
 	if err != nil {
@@ -130,6 +136,7 @@ func (p *Process) Start(ctx context.Context) error {
 
 // Wait for the process to exit
 func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Info("PPPP process wait")
 	init := p.t.processList[p.t.id]
 	init.Wait()
 

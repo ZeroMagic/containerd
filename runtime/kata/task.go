@@ -95,13 +95,13 @@ func newTask(ctx context.Context, id, namespace string, pid uint32, monitor runt
 
 // ID of the task
 func (t *Task) ID() string {
-	logrus.FieldLogger(logrus.New()).Info("task ID")
+	// logrus.FieldLogger(logrus.New()).Info("task ID")
 	return t.id
 }
 
 // Info returns task information about the runtime and namespace
 func (t *Task) Info() runtime.TaskInfo {
-	logrus.FieldLogger(logrus.New()).Info("task Info")
+	// logrus.FieldLogger(logrus.New()).Info("task Info")
 	return runtime.TaskInfo{
 		ID:        t.id,
 		Runtime:   pluginID,
@@ -111,7 +111,7 @@ func (t *Task) Info() runtime.TaskInfo {
 
 // Start the task
 func (t *Task) Start(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task Start")
+	logrus.FieldLogger(logrus.New()).Info("TTT task Start")
 
 	// t.mu.Lock()
 	// hasCgroup := t.cg != nil
@@ -163,7 +163,7 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 	case string(vc.StateStopped):
 		status = runtime.StoppedStatus
 	}
-	logrus.FieldLogger(logrus.New()).Infof("task State: %v", state)
+	logrus.FieldLogger(logrus.New()).Infof("TTT task State: %v", state)
 	stdio := p.Stdio()
 	// logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
 	// 	"Status":     status,
@@ -338,7 +338,7 @@ func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 
 // Wait for the task to exit returning the status and timestamp
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Wait")
+	logrus.FieldLogger(logrus.New()).Info("TTT task Wait")
 	p := t.processList[t.id]
 	p.Wait()
 	p.SetExited(0)
