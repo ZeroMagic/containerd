@@ -143,7 +143,7 @@ func (t *Task) Start(ctx context.Context) error {
 
 // State returns runtime information for the task
 func (t *Task) State(ctx context.Context) (runtime.State, error) {
-	logrus.FieldLogger(logrus.New()).Info("task State")
+	
 
 	p := t.processList[t.id]
 
@@ -163,7 +163,7 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 	case string(vc.StateStopped):
 		status = runtime.StoppedStatus
 	}
-
+	logrus.FieldLogger(logrus.New()).Infof("task State: %v", state)
 	stdio := p.Stdio()
 	// logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
 	// 	"Status":     status,
