@@ -124,5 +124,5 @@ func (e *ExecProcess) kill(ctx context.Context, sig uint32, _ bool) error {
 func (e *ExecProcess) setExited(status int) {
 	e.exitStatus = status
 	e.exited = time.Now()
-	close(e.waitBlock)
+	// close(e.waitBlock)
 }
