@@ -279,6 +279,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	// this can be different on a checkpoint/restore
 	if t.cg != nil {
 		if err = r.monitor.Monitor(t); err != nil {
+			log.G(ctx).Info("deleting task")
 			if _, err := r.Delete(ctx, t); err != nil {
 				log.G(ctx).WithError(err).Error("deleting task after failed monitor")
 			}
@@ -304,7 +305,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 
 // Delete a task removing all on disk state
 func (r *Runtime) Delete(ctx context.Context, c runtime.Task) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Infof("runtime %v, Delete", r.state)
+	log.G(ctx).Infof("runtime %v, Delete", r.state)
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
