@@ -25,7 +25,7 @@ import (
 	vc "github.com/kata-containers/runtime/virtcontainers"
 	errors "github.com/pkg/errors"
 
-	"k8s.io/frakti/pkg/kata/proc"
+	"github.com/containerd/containerd/runtime/kata/proc"
 )
 
 // Process implements containerd.Process and containerd.State

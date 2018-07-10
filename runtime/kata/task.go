@@ -32,7 +32,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"k8s.io/frakti/pkg/kata/proc"
+	"github.com/containerd/containerd/runtime/kata/proc"
 )
 
 // Task on a hypervisor based system
