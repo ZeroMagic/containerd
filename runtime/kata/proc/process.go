@@ -39,7 +39,7 @@ func (s Stdio) IsNull() bool {
 }
 
 // Process on a linux system
-type Process interface {	
+type Process interface {
 	State
 
 	// ID returns the id for the process
@@ -64,8 +64,6 @@ type Process interface {
 type State interface {
 	// Resize resizes the process console
 	Resize(ws console.WinSize) error
-	// Start execution of the process
-	Start(context.Context) error
 	// Delete deletes the process and its resourcess
 	Delete(context.Context) error
 	// Kill kills the process
@@ -89,5 +87,3 @@ func stateName(v interface{}) string {
 	}
 	panic(errors.Errorf("invalid state %v", v))
 }
-
-

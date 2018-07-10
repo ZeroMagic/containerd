@@ -28,15 +28,18 @@ import (
 	identifiers "github.com/containerd/containerd/identifiers"
 	log "github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/metadata"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/runtime"
-	"github.com/containerd/typeurl"
 	"github.com/containerd/cri/pkg/annotations"
+	"github.com/containerd/typeurl"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	errors "github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,25 +51,11 @@ var (
 	pluginID = fmt.Sprintf("%s.%s", plugin.RuntimePlugin, RuntimeName)
 )
 
-func init() {
-	plugin.Register(&plugin.Registration{
-		ID:     RuntimeName,
-		Type:   plugin.RuntimePlugin,
-		InitFn: New,
-		Requires: []plugin.Type{
-			plugin.TaskMonitorPlugin,
-			plugin.MetadataPlugin,
-		},
-	})
-}
-
 // Runtime for kata containers
 type Runtime struct {
-
 	root    string
 	state   string
 	address string
-	pidPool *pidPool
 
 	monitor runtime.TaskMonitor
 	tasks   *runtime.TaskList
@@ -96,7 +85,6 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 		root:    ic.Root,
 		state:   ic.State,
 		address: ic.Address,
-		pidPool: newPidPool(),
 
 		monitor: monitor.(runtime.TaskMonitor),
 		tasks:   runtime.NewTaskList(),
@@ -118,10 +106,6 @@ func (r *Runtime) ID() string {
 
 // Create creates a task with the provided id and options.
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (runtime.Task, error) {
-	
-	// TODO(ZeroMagic): create a new task
-
-	log.G(ctx).Infof("Runtime: CreateOpts is %v", opts)
 
 	// 1. get namespace
 	namespace, err := namespaces.NamespaceRequired(ctx)
@@ -132,10 +116,8 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	if err := identifiers.Validate(id); err != nil {
 		return nil, errors.Wrapf(err, "invalid task id")
 	}
-	log.G(ctx).Infof("Runtime: namespace is %v", namespace)
 
-	// 2. create bundle to store local image.
-	// Generate the rootfs dir and config.json
+	// 2. create bundle to store local image. Generate the rootfs dir and config.json
 	bundle, err := newBundle(id,
 		filepath.Join(r.state, namespace),
 		filepath.Join(r.root, namespace),
@@ -148,12 +130,10 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 			bundle.Delete()
 		}
 	}()
-	log.G(ctx).Infof("Runtime: bundle is %v", bundle)
 
 	// 3. get pid for vm. Now we use the specify pid.
 	var pid uint32
 	pid = 10244
-	log.G(ctx).Infof("Runtime: pid is %v", pid)
 
 	// 4. mount rootfs
 	var eventRootfs []*types.Mount
@@ -164,7 +144,6 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 			Options: m.Options,
 		})
 	}
-	log.G(ctx).Infof("Runtime: eventRootfs is %v", eventRootfs)
 
 	// 5. With containerType, we can tell sandbox from container. In the future, we will use the variable.
 	s, err := typeurl.UnmarshalAny(opts.Spec)
@@ -175,33 +154,29 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	containerType := spec.Annotations[annotations.ContainerType]
 	log.G(ctx).Infof("Runtime: ContainerType is %s\n", containerType)
 
-	// 6. new task. Init the vm, sandbox, and container.
-	log.G(ctx).Infoln("Runtime: enter newTask")
+	// 6. new task. Init the vm, sandbox, and necessary container.
 	t, err := newTask(ctx, id, namespace, pid, r.monitor, r.events, opts, bundle)
 	if err != nil {
-		log.G(ctx).Infoln("Runtime: error newTask")
 		return nil, err
 	}
-	log.G(ctx).Infoln("Runtime: finish newTask")
 
-	log.G(ctx).Infoln("Runtime: start adding task")
 	if err := r.tasks.Add(ctx, t); err != nil {
 		return nil, err
 	}
 	// 7. after the task is created, add it to the monitor if it has a cgroup
 	// this can be different on a checkpoint/restore
-	log.G(ctx).Infoln("Runtime: start monitoring")
-	if t.cg != nil {
-		if err = r.monitor.Monitor(t); err != nil {
-			if _, err := r.Delete(ctx, t); err != nil {
-				log.G(ctx).WithError(err).Error("deleting task after failed monitor")
-			}
-			return nil, err
-		}
-	}
+	// if t.cg != nil {
+	// 	if err = r.monitor.Monitor(t); err != nil {
+	// 		if _, err := r.Delete(ctx, t); err != nil {
+	// 			log.G(ctx).WithError(err).Error("deleting task after failed monitor")
+	// 		}
+	// 		return nil, err
+	// 	}
+	// }
+
+	logrus.FieldLogger(logrus.New()).Info("Runtime create a task Successfully")
 
 	// 8. publish create event
-	log.G(ctx).Infoln("Runtime: start publishing")
 	r.events.Publish(ctx, runtime.TaskCreateEventTopic, &eventstypes.TaskCreate{
 		ContainerID: id,
 		Bundle:      bundle.path,
@@ -213,9 +188,9 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 			Terminal: opts.IO.Terminal,
 		},
 		Checkpoint: opts.Checkpoint,
-		Pid:    t.pid,
+		Pid:        t.pid,
 	})
-	
+
 	return t, nil
 }
 
@@ -231,8 +206,46 @@ func (r *Runtime) Tasks(ctx context.Context) ([]runtime.Task, error) {
 
 // Delete removes the task in the runtime.
 func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, error) {
-	
-	// TODO(ZeroMagic): delete a task
-	
-	return nil, fmt.Errorf("not implemented")
+
+	// monitor will be handled
+
+	taskID := t.ID()
+	namespace, err := namespaces.NamespaceRequired(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	bundle := loadBundle(
+		taskID,
+		filepath.Join(r.state, namespace, taskID),
+		filepath.Join(r.root, namespace, taskID),
+	)
+
+	// unmount
+	if err := mount.Unmount(filepath.Join(bundle.path, "rootfs"), 0); err != nil {
+		log.G(ctx).WithError(err).WithFields(logrus.Fields{
+			"path": bundle.path,
+			"id":   taskID,
+		}).Warnf("unmount task rootfs")
+	}
+
+	// delete process
+	p := t.(*Task).GetProcess(taskID)
+	if err := p.Delete(ctx); err != nil {
+		return nil, err
+	}
+
+	// remove the task
+	r.tasks.Delete(ctx, taskID)
+
+	// delete the bundle
+	if err := bundle.Delete(); err != nil {
+		log.G(ctx).WithError(err).Error("failed to delete bundle")
+	}
+
+	return &runtime.Exit{
+		Pid:        uint32(p.Pid()),
+		Status: 	uint32(p.ExitStatus()),
+		Timestamp:	p.ExitedAt(),
+	}, nil
 }
