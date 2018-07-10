@@ -93,9 +93,6 @@ const storagePathSuffix = "/vc/sbs"
 // It will contain one config.json file for each created sandbox.
 var configStoragePath = filepath.Join("/var/lib", storagePathSuffix)
 
-// !!!
-	//
-	//
 // runStoragePath is the sandbox runtime directory.
 // It will contain one state.json and one lock file for each created sandbox.
 var runStoragePath = filepath.Join("/run", storagePathSuffix)
