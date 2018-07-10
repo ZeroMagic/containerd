@@ -177,7 +177,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	// 	}
 	// }
 
-	logrus.FieldLogger(logrus.New()).Info("Runtime create a task Successfully")
+	logrus.FieldLogger(logrus.New()).Info("RR--Runtime create a task Successfully")
 
 	// 8. publish create event
 	r.events.Publish(ctx, runtime.TaskCreateEventTopic, &eventstypes.TaskCreate{
@@ -232,6 +232,8 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		}).Warnf("unmount task rootfs")
 	}
 
+
+	logrus.FieldLogger(logrus.New()).Infof("RR--Runtime Delete task %v", taskID)
 	// delete process
 	p := t.(*Task).GetProcess(taskID)
 	if err := p.Delete(ctx); err != nil {
