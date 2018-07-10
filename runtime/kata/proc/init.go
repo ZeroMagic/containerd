@@ -315,10 +315,10 @@ func (p *Init) start(ctx context.Context) error {
 func (p *Init) delete(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Infof("init delete %v", p.id)
 
-	err := p.kill(ctx, uint32(syscall.SIGKILL), true)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete container")
-	}
+	// err := p.kill(ctx, uint32(syscall.SIGKILL), true)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to delete container")
+	// }
 
 	return nil
 }
