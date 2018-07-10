@@ -43,6 +43,13 @@ import (
 // InitPidFile name of the file that contains the init pid
 const InitPidFile = "init.pid"
 
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		buffer := make([]byte, 32<<10)
+		return &buffer
+	},
+}
+
 // Init represents an initial process for a container
 type Init struct {
 	wg sync.WaitGroup
@@ -170,7 +177,9 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 			return
 		}
 		logrus.FieldLogger(logrus.New()).Info("stdin: begin")
-		_, err = io.Copy(stdin, localStdin)
+		buf := bufPool.Get().(*[]byte)
+		defer bufPool.Put(buf)
+		_, err = io.CopyBuffer(stdin, localStdin, *buf)
 		if err == io.ErrClosedPipe {
 			err = nil
 		}
@@ -189,7 +198,10 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 		}
 
 		logrus.FieldLogger(logrus.New()).Infof("%s: begin", name)
-		_, err := io.Copy(stream, streamPipe)
+		buf := bufPool.Get().(*[]byte)
+		defer bufPool.Put(buf)
+
+		_, err := io.CopyBuffer(stream, streamPipe, *buf)
 		if err == io.ErrClosedPipe {
 			err = nil
 		}
