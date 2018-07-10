@@ -279,6 +279,11 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 
 // Wait for the process to exit
 func (p *Init) Wait() {
+	exitCode, err := p.sandbox.WaitProcess(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		return 
+	}
+	p.exitStatus = int(exitCode)
 	<-p.waitBlock
 }
 
@@ -296,10 +301,23 @@ func (p *Init) start(ctx context.Context) error {
 }
 
 func (p *Init) delete(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("init delete")
+
 	err := p.kill(ctx, uint32(syscall.SIGKILL), true)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete container")
 	}
+
+	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to stop container")
+	}
+
+	_, err = vc.StopSandbox(p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to stop sandbox")
+	}
+
 	return nil
 }
 
