@@ -41,15 +41,15 @@
 			"checksumSHA1": "s0EBLgmirugYuk1a+tRSa8YTiQM=",
 			"origin": "github.com/kata-containers/runtime/vendor/github.com/kata-containers/agent/protocols/client",
 			"path": "github.com/kata-containers/agent/protocols/client",
-			"revision": "2f7187ae3f12039384566be4f9c6ebe1856cb771",
-			"revisionTime": "2018-06-05T08:00:09Z"
+			"revision": "47caba8370a8b2b0609b2771fbac2c3d8fbfa98b",
+			"revisionTime": "2018-06-22T22:41:37Z"
 		},
 		{
-			"checksumSHA1": "6oHgCPGalKXbJRi58g2e6IJqiUc=",
+			"checksumSHA1": "cSECKdfNqfcGpeD6bTuZLBjw6IE=",
 			"origin": "github.com/kata-containers/runtime/vendor/github.com/kata-containers/agent/protocols/grpc",
 			"path": "github.com/kata-containers/agent/protocols/grpc",
-			"revision": "2f7187ae3f12039384566be4f9c6ebe1856cb771",
-			"revisionTime": "2018-06-05T08:00:09Z"
+			"revision": "47caba8370a8b2b0609b2771fbac2c3d8fbfa98b",
+			"revisionTime": "2018-06-22T22:41:37Z"
 		},
 		{
 			"checksumSHA1": "F7YrpU5ueotRIWMs5ol+FJBZeWg=",
