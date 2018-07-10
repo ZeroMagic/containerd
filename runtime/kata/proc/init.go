@@ -328,6 +328,16 @@ func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 		return errors.Wrap(err, "failed to kill container")
 	}
 
+	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to stop container")
+	}
+
+	_, err = vc.StopSandbox(p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to stop sandbox")
+	}
+
 	return nil
 }
 
