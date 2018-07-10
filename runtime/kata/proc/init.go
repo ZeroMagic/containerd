@@ -1,5 +1,3 @@
-// +build !windows
-
 /*
 Copyright 2018 The Kubernetes Authors.
 
@@ -19,23 +17,27 @@ limitations under the License.
 package proc
 
 import (
-	"fmt"
 	"context"
+	"encoding/json"
 	"io"
+	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
-	"os"
 
-	console "github.com/containerd/console"
+	"github.com/containerd/fifo"
+	"github.com/containerd/console"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/fifo"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 
-	"github.com/containerd/containerd/runtime/kata/platform"
-	"github.com/containerd/containerd/runtime/kata/server"
+	"k8s.io/frakti/pkg/kata/server"
+
+	vc "github.com/kata-containers/runtime/virtcontainers"
+
+	"github.com/sirupsen/logrus"
 )
 
 // InitPidFile name of the file that contains the init pid
@@ -51,28 +53,28 @@ type Init struct {
 
 	workDir string
 
-	id       string
-	bundle   string
-	console  console.Console
-	platform platform.Platform
-	io		 IO
+	id     string
+	bundle string
 
-	exitStatus   int
-	exited   time.Time
-	pid      int
-	closers  []io.Closer
-	stdin    io.Closer
-	stdio    Stdio
-	rootfs   string
-	IoUID    int
-	IoGID    int
+	exitStatus int
+	exited     time.Time
+	pid        int
+	stdin      io.WriteCloser
+	stdout     io.Reader
+	stderr     io.Reader
+	stdio      Stdio
+	rootfs     string
+	IoUID      int
+	IoGID      int
+
+	sandbox vc.VCSandbox
 }
 
 // NewInit returns a new init process
 func NewInit(ctx context.Context, path, workDir, namespace string, pid int, config *InitConfig) (*Init, error) {
 	var (
 		success bool
-		err 	error
+		err     error
 	)
 
 	rootfs := filepath.Join(path, "rootfs")
@@ -96,81 +98,120 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 		}
 	}
 
-	platform, err := platform.NewPlatform()
-
 	p := &Init{
-		id:       config.ID,
-		pid:	pid,
+		id:  config.ID,
+		pid: pid,
 		stdio: Stdio{
 			Stdin:    config.Stdin,
 			Stdout:   config.Stdout,
 			Stderr:   config.Stderr,
 			Terminal: config.Terminal,
 		},
-		rootfs:    rootfs,
-		bundle:		path,
-		workDir:   workDir,
-		platform:	platform,
-		exitStatus:0,
-		waitBlock: make(chan struct{}),
-		IoUID:     os.Getuid(),
-		IoGID:     os.Getuid(),
+		rootfs:     rootfs,
+		bundle:     path,
+		workDir:    workDir,
+		exitStatus: 0,
+		waitBlock:  make(chan struct{}),
+		IoUID:      os.Getuid(),
+		IoGID:      os.Getuid(),
 	}
 	p.initState = &createdState{p: p}
-	var socket *Socket
-	if config.Terminal {
-		if socket, err = NewTempConsoleSocket(); err != nil {
-			return nil, errors.Wrap(err, "failed to create OCI runtime console socket")
-		}
-		defer socket.Close()
-	} else if hasNoIO(config) {
-		if p.io, err = NewNullIO(); err != nil {
-			return nil, errors.Wrap(err, "creating new NULL IO")
-		}
-	} else {
-		if p.io, err = NewPipeIO(p.IoUID, p.IoGID); err != nil {
-			return nil, errors.Wrap(err, "failed to create OCI runtime io pipes")
-		}
-	}
 
 	// create kata container
-	log.G(ctx).Infoln("Init: create sandbox")
-	err = server.CreateSandbox(ctx, config.ID)
+	p.sandbox, err = server.CreateSandbox(ctx, config.ID)
 	if err != nil {
-		log.G(ctx).Infoln("Init: error create sandbox")
 		return nil, errors.Wrap(err, "failed to create sandbox")
 	}
-	log.G(ctx).Infoln("Init: finish creating sandbox")
 
-	if config.Stdin != "" {
-		sc, err := fifo.OpenFifo(ctx, config.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to open stdin fifo %s", config.Stdin)
-		}
-		p.stdin = sc
-		p.closers = append(p.closers, sc)
+	stdin, stdout, stderr, err := p.sandbox.IOStream(config.ID, config.ID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get a container's stdio streams from kata")
 	}
-	var copyWaitGroup sync.WaitGroup
-	if socket != nil {
-		console, err := socket.ReceiveMaster()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve console master")
-		}
-		console, err = platform.CopyConsole(ctx, console, config.Stdin, config.Stdout, config.Stderr, &p.wg, &copyWaitGroup)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to start console copy")
-		}
-		p.console = console
-	} else if !hasNoIO(config) {
-		if err := copyPipes(ctx, p.io, config.Stdin, config.Stdout, config.Stderr, &p.wg, &copyWaitGroup); err != nil {
-			return nil, errors.Wrap(err, "failed to start io pipe copy")
-		}
-	}
+	p.stdin = stdin
+	p.stdout = stdout
+	p.stderr = stderr
 
-	copyWaitGroup.Wait()
-
-	
 	// TODO(ZeroMagic): create with checkpoint
+
+	// create local stdio
+	var (
+		localStdout io.WriteCloser//, localStderr io.WriteCloser
+		localStdin           io.ReadCloser
+		wg               sync.WaitGroup
+	)
+
+	if stdin != nil {
+		localStdin, err = fifo.OpenFifo(ctx, config.Stdin, syscall.O_RDONLY, 0)
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("open local stdin: %s", err)
+		}
+		wg.Add(1)
+	}
+
+	if stdout != nil {
+		localStdout, err = fifo.OpenFifo(ctx, config.Stdout, syscall.O_WRONLY, 0)
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("open local stdout: %s", err)
+		}
+		wg.Add(1)
+	}
+
+	// if stderr != nil {
+	// 	localStderr, err = fifo.OpenFifo(ctx, config.Stderr, syscall.O_WRONLY, 0)
+	// 	if err != nil {
+	// 		logrus.FieldLogger(logrus.New()).Errorf("open local stderr: %s", err)
+	// 	}
+	// 	wg.Add(1)
+	// }
+
+	// Connect stdin of container.
+	go func() {
+		if stdin == nil {
+			return
+		}
+		logrus.FieldLogger(logrus.New()).Info("stdin: begin")
+		_, err = io.Copy(stdin, localStdin)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("stdin copy: %s", err)
+		}
+		
+		logrus.FieldLogger(logrus.New()).Info("stdin: end")
+		wg.Done()
+	}()
+
+	// stdout/stderr
+	attachStream := func(name string, stream io.Writer, streamPipe io.Reader) {
+		if stream == nil {
+			return
+		}
+
+		logrus.FieldLogger(logrus.New()).Infof("%s: begin", name)
+		_, err := io.Copy(stream, streamPipe)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("%s copy: %v", name, err)
+		}
+		
+		if localStdin != nil {
+			localStdin.Close()
+		}
+
+		if closer, ok := stream.(io.Closer); ok {
+			closer.Close()
+		}
+		logrus.FieldLogger(logrus.New()).Infof("%s: end", name)
+		wg.Done()
+	}
+
+	go attachStream("stdout", localStdout, stdout)
+	// go attachStream("stderr", localStderr, stderr)
+
+	wg.Wait()
 
 	success = true
 	return p, nil
@@ -205,7 +246,6 @@ func (p *Init) Stdin() io.Closer {
 	return p.stdin
 }
 
-
 // Stdio of the process
 func (p *Init) Stdio() Stdio {
 	return p.stdio
@@ -215,7 +255,7 @@ func (p *Init) Stdio() Stdio {
 func (p *Init) Status(ctx context.Context) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	status, err := server.StatusContainer(p.id, p.id)
+	status, err := server.StatusContainer(p.sandbox.ID(), p.sandbox.ID())
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "stopped", nil
@@ -231,33 +271,123 @@ func (p *Init) Wait() {
 }
 
 func (p *Init) resize(ws console.WinSize) error {
-	if p.console == nil {
-		return nil
-	}
-	return p.console.Resize(ws)
+	return p.sandbox.WinsizeProcess(p.sandbox.ID(), p.id, uint32(ws.Height), uint32(ws.Width))
 }
 
 func (p *Init) start(ctx context.Context) error {
-	log.G(ctx).Infoln("Init: start kata sandbox")
-	log.G(ctx).Infof("Init: init process id is %v, pid is %v  ", p.id, p.pid)
-	server.StartSandbox(ctx, p.id)
-	return fmt.Errorf("init process start is not implemented")
+	err := server.StartSandbox(ctx, p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to start sandbox")
+	}
+
+	return nil
 }
 
 func (p *Init) delete(ctx context.Context) error {
-	return fmt.Errorf("init process delete is not implemented")
+	err := p.kill(ctx, uint32(syscall.SIGKILL), true)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete container")
+	}
+	return nil
 }
 
 func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 
-	server.KillContainer(p.id, p.id, syscall.Signal(signal), all)
+	err := server.KillContainer(p.sandbox.ID(), p.sandbox.ID(), syscall.Signal(signal), all)
+	if err != nil {
+		return errors.Wrap(err, "failed to kill container")
+	}
 
-	return fmt.Errorf("init process kill is not implemented")
+	return nil
 }
 
 func (p *Init) setExited(status int) {
 	p.exited = time.Now()
 	p.exitStatus = status
-	p.platform.ShutdownConsole(context.Background(), p.console)
 	close(p.waitBlock)
+}
+
+// Metrics return the stats of a container
+func (p *Init) Metrics(ctx context.Context) (vc.ContainerStats, error) {
+	stats, err := p.sandbox.StatsContainer(p.sandbox.ID())
+	if err != nil {
+		return vc.ContainerStats{}, errors.Wrap(err, "failed to get the stats of a container")
+	}
+
+	return stats, nil
+}
+
+func (p *Init) pause(ctx context.Context) error {
+	err := p.sandbox.Pause()
+	if err != nil {
+		return errors.Wrap(err, "failed to pause container")
+	}
+	return nil
+}
+
+func (p *Init) resume(ctx context.Context) error {
+	err := p.sandbox.Resume()
+	if err != nil {
+		return errors.Wrap(err, "failed to resume container")
+	}
+	return nil
+}
+
+// exec returns a new exec'd process
+func (p *Init) exec(context context.Context, id string, conf *ExecConfig) (Process, error) {
+	var spec specs.Process
+	if err := json.Unmarshal(conf.Spec.Value, &spec); err != nil {
+		return nil, err
+	}
+	spec.Terminal = conf.Terminal
+
+	capabilities := vc.LinuxCapabilities{
+		Bounding:    spec.Capabilities.Bounding,
+		Effective:   spec.Capabilities.Effective,
+		Inheritable: spec.Capabilities.Inheritable,
+		Permitted:   spec.Capabilities.Permitted,
+		Ambient:     spec.Capabilities.Ambient,
+	}
+
+	cmd := vc.Cmd{
+		Args:            spec.Args,
+		Envs:            []vc.EnvVar{},
+		User:            string(spec.User.UID),
+		PrimaryGroup:    string(spec.User.GID),
+		WorkDir:         spec.Cwd,
+		Capabilities:    capabilities,
+		Interactive:     spec.Terminal,
+		Detach:          !spec.Terminal,
+		NoNewPrivileges: spec.NoNewPrivileges,
+	}
+
+	_, process, err := p.sandbox.EnterContainer(p.sandbox.ID(), cmd)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot enter container %s", p.sandbox.ID())
+	}
+
+	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandbox.ID(), process.Token)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get %s IOStream", p.sandbox.ID())
+	}
+
+	e := &ExecProcess{
+		id:     conf.ID,
+		pid:    process.Pid,
+		token:  process.Token,
+		parent: p,
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+		stdio: Stdio{
+			Stdin:    conf.Stdin,
+			Stdout:   conf.Stdout,
+			Stderr:   conf.Stderr,
+			Terminal: conf.Terminal,
+		},
+		spec:      spec,
+		waitBlock: make(chan struct{}),
+	}
+	e.State = &execCreatedState{p: e}
+	return e, nil
 }

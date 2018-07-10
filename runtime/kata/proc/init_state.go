@@ -1,19 +1,17 @@
-// +build !windows
-
 /*
-   Copyright The containerd Authors.
+Copyright 2018 The Kubernetes Authors.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package proc
@@ -28,6 +26,11 @@ import (
 
 type initState interface {
 	State
+
+	Pause(context.Context) error
+	Resume(context.Context) error
+	Start(context.Context) error
+	Exec(context.Context, string, *ExecConfig) (Process, error)
 }
 
 type createdState struct {
@@ -91,6 +94,26 @@ func (s *createdState) SetExited(status int) {
 	}
 }
 
+func (s *createdState) Pause(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return errors.Errorf("cannot pause task in created state")
+}
+
+func (s *createdState) Resume(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return errors.Errorf("cannot resume task in created state")
+}
+
+func (s *createdState) Exec(ctx context.Context, id string, conf *ExecConfig) (Process, error) {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+	return s.p.exec(ctx, id, conf)
+}
+
 type runningState struct {
 	p *Init
 }
@@ -144,6 +167,28 @@ func (s *runningState) SetExited(status int) {
 	if err := s.transition("stopped"); err != nil {
 		panic(err)
 	}
+}
+
+func (s *runningState) Pause(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+	if err := s.p.pause(ctx); err != nil {
+		return err
+	}
+	return s.transition("paused")
+}
+
+func (s *runningState) Resume(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return errors.Errorf("cannot resume a running process")
+}
+
+func (s *runningState) Exec(ctx context.Context, id string, conf *ExecConfig) (Process, error) {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+	return s.p.exec(ctx, id, conf)
 }
 
 type pausedState struct {
@@ -201,6 +246,30 @@ func (s *pausedState) SetExited(status int) {
 	}
 }
 
+func (s *pausedState) Pause(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return errors.Errorf("cannot pause a paused container")
+}
+
+func (s *pausedState) Resume(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	if err := s.p.resume(ctx); err != nil {
+		return err
+	}
+	return s.transition("running")
+}
+
+func (s *pausedState) Exec(ctx context.Context, id string, conf *ExecConfig) (Process, error) {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return nil, errors.Errorf("cannot exec in a paused state")
+}
+
 type stoppedState struct {
 	p *Init
 }
@@ -244,4 +313,25 @@ func (s *stoppedState) Kill(ctx context.Context, sig uint32, all bool) error {
 
 func (s *stoppedState) SetExited(status int) {
 	// no op
+}
+
+func (s *stoppedState) Pause(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return errors.Errorf("cannot pause a stopped container")
+}
+
+func (s *stoppedState) Resume(ctx context.Context) error {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return errors.Errorf("cannot resume a stopped container")
+}
+
+func (s *stoppedState) Exec(ctx context.Context, id string, conf *ExecConfig) (Process, error) {
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
+
+	return nil, errors.Errorf("cannot exec in a stopped state")
 }

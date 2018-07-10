@@ -23,13 +23,13 @@ import (
 
 // InitConfig hold task creation configuration
 type InitConfig struct {
-	ID               string
-	Runtime          string
-	Rootfs           []mount.Mount
-	Terminal         bool
-	Stdin            string
-	Stdout           string
-	Stderr           string
+	ID       string
+	Runtime  string
+	Rootfs   []mount.Mount
+	Terminal bool
+	Stdin    string
+	Stdout   string
+	Stderr   string
 }
 
 // ExecConfig holds exec creation configuration

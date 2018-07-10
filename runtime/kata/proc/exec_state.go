@@ -1,19 +1,17 @@
-// +build !windows
-
 /*
-   Copyright The containerd Authors.
+Copyright 2018 The Kubernetes Authors.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 package proc
@@ -26,7 +24,7 @@ import (
 )
 
 type execCreatedState struct {
-	p *execProcess
+	p *ExecProcess
 }
 
 func (s *execCreatedState) transition(name string) error {
@@ -48,15 +46,6 @@ func (s *execCreatedState) Resize(ws console.WinSize) error {
 	defer s.p.mu.Unlock()
 
 	return s.p.resize(ws)
-}
-
-func (s *execCreatedState) Start(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-	if err := s.p.start(ctx); err != nil {
-		return err
-	}
-	return s.transition("running")
 }
 
 func (s *execCreatedState) Delete(ctx context.Context) error {
@@ -87,7 +76,7 @@ func (s *execCreatedState) SetExited(status int) {
 }
 
 type execRunningState struct {
-	p *execProcess
+	p *ExecProcess
 }
 
 func (s *execRunningState) transition(name string) error {
@@ -105,13 +94,6 @@ func (s *execRunningState) Resize(ws console.WinSize) error {
 	defer s.p.mu.Unlock()
 
 	return s.p.resize(ws)
-}
-
-func (s *execRunningState) Start(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
-	return errors.Errorf("cannot start a running process")
 }
 
 func (s *execRunningState) Delete(ctx context.Context) error {
@@ -140,7 +122,7 @@ func (s *execRunningState) SetExited(status int) {
 }
 
 type execStoppedState struct {
-	p *execProcess
+	p *ExecProcess
 }
 
 func (s *execStoppedState) transition(name string) error {
@@ -158,13 +140,6 @@ func (s *execStoppedState) Resize(ws console.WinSize) error {
 	defer s.p.mu.Unlock()
 
 	return errors.Errorf("cannot resize a stopped container")
-}
-
-func (s *execStoppedState) Start(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
-	return errors.Errorf("cannot start a stopped process")
 }
 
 func (s *execStoppedState) Delete(ctx context.Context) error {
