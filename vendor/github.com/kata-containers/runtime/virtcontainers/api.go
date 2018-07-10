@@ -38,15 +38,12 @@ func CreateSandbox(sandboxConfig SandboxConfig) (VCSandbox, error) {
 	return createSandboxFromConfig(sandboxConfig)
 }
 
-//!!
 func createSandboxFromConfig(sandboxConfig SandboxConfig) (*Sandbox, error) {
 	// Create the sandbox.
 	s, err := createSandbox(sandboxConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	
 
 	// Create the sandbox network
 	if err := s.createNetwork(); err != nil {
@@ -618,7 +615,7 @@ func UpdateContainer(sandboxID, containerID string, resources specs.LinuxResourc
 		return errNeedContainerID
 	}
 
-	lockFile, err := rLockSandbox(sandboxID)
+	lockFile, err := rwLockSandbox(sandboxID)
 	if err != nil {
 		return err
 	}
@@ -655,4 +652,47 @@ func StatsContainer(sandboxID, containerID string) (ContainerStats, error) {
 	}
 
 	return s.StatsContainer(containerID)
+}
+
+func togglePauseContainer(sandboxID, containerID string, pause bool) error {
+	if sandboxID == "" {
+		return errNeedSandboxID
+	}
+
+	if containerID == "" {
+		return errNeedContainerID
+	}
+
+	lockFile, err := rwLockSandbox(sandboxID)
+	if err != nil {
+		return err
+	}
+	defer unlockSandbox(lockFile)
+
+	s, err := fetchSandbox(sandboxID)
+	if err != nil {
+		return err
+	}
+
+	// Fetch the container.
+	c, err := s.findContainer(containerID)
+	if err != nil {
+		return err
+	}
+
+	if pause {
+		return c.pause()
+	}
+
+	return c.resume()
+}
+
+// PauseContainer is the virtcontainers container pause entry point.
+func PauseContainer(sandboxID, containerID string) error {
+	return togglePauseContainer(sandboxID, containerID, true)
+}
+
+// ResumeContainer is the virtcontainers container resume entry point.
+func ResumeContainer(sandboxID, containerID string) error {
+	return togglePauseContainer(sandboxID, containerID, false)
 }
