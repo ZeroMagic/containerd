@@ -22,7 +22,6 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/runtime"
-
 	vc "github.com/kata-containers/runtime/virtcontainers"
 	errors "github.com/pkg/errors"
 )
@@ -49,20 +48,20 @@ func DeleteContainer(ctx context.Context, id string, opts runtime.CreateOpts) er
 
 // KillContainer kills one or more kata-runtime containers
 func KillContainer(sandboxID, containerID string, signal syscall.Signal, all bool) error {
-	
 	err := vc.KillContainer(sandboxID, containerID, signal, all)
 	if err != nil {
 		return errors.Wrapf(err, "Could not kill container")
 	}
+
 	return nil
 }
 
 // StatusContainer returns the virtcontainers container status.
 func StatusContainer(sandboxID, containerID string) (vc.ContainerStatus, error) {
-	
 	status, err := vc.StatusContainer(sandboxID, containerID)
 	if err != nil {
 		return vc.ContainerStatus{}, errors.Wrapf(err, "Could not kill container")
 	}
+
 	return status, nil
 }

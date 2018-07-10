@@ -17,23 +17,22 @@ limitations under the License.
 package kata
 
 import (
+	"context"
 	"fmt"
-    "context"
 	"sync"
 	"time"
 
-	cgroups "github.com/containerd/cgroups"
+	"github.com/containerd/cgroups"
+	"github.com/containerd/console"
 	eventstypes "github.com/containerd/containerd/api/events"
-	exchange "github.com/containerd/containerd/events/exchange"
-	log "github.com/containerd/containerd/log"
-    "github.com/containerd/containerd/runtime"
+	"github.com/containerd/containerd/events/exchange"
+	"github.com/containerd/containerd/runtime"
 	"github.com/gogo/protobuf/types"
-	"github.com/pkg/errors"
-	
-	"github.com/containerd/containerd/runtime/kata/proc"
-
 	vc "github.com/kata-containers/runtime/virtcontainers"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
+	"k8s.io/frakti/pkg/kata/proc"
 )
 
 // Task on a hypervisor based system
@@ -44,52 +43,65 @@ type Task struct {
 	namespace string
 	pid       uint32
 
-    cg        cgroups.Cgroup
-    monitor   runtime.TaskMonitor
-	events    *exchange.Exchange
-	
+	cg      cgroups.Cgroup
+	monitor runtime.TaskMonitor
+	events  *exchange.Exchange
+
 	processList map[string]proc.Process
 }
 
 func newTask(ctx context.Context, id, namespace string, pid uint32, monitor runtime.TaskMonitor, events *exchange.Exchange, opts runtime.CreateOpts, bundle *bundle) (*Task, error) {
-	// TODO(ZeroMagic): how to load cgroup when reconnecting
+	// var (
+	// 	err error
+	// 	cg  cgroups.Cgroup
+	// )
+	// if pid > 0 {
+	// 	cg, err = cgroups.Load(cgroups.V1, cgroups.PidPath(int(pid)))
+	// 	if err != nil && err != cgroups.ErrCgroupDeleted {
+	// 		return nil, err
+	// 	}
+	// }
 	
-	config :=  &proc.InitConfig{
-		ID:			id,
-		Rootfs:		opts.Rootfs,
-		Terminal: 	opts.IO.Terminal,
-		Stdin:      opts.IO.Stdin,
-		Stdout:     opts.IO.Stdout,
-		Stderr:     opts.IO.Stderr,
+	config := &proc.InitConfig{
+		ID:       id,
+		Rootfs:   opts.Rootfs,
+		Terminal: opts.IO.Terminal,
+		Stdin:    opts.IO.Stdin,
+		Stdout:   opts.IO.Stdout,
+		Stderr:   opts.IO.Stderr,
 	}
 
-	log.G(ctx).Infoln("new init process")
 	init, err := proc.NewInit(ctx, bundle.path, bundle.workDir, namespace, int(pid), config)
 	if err != nil {
 		return nil, errors.Wrap(err, "new init process error")
 	}
 
 	processList := make(map[string]proc.Process)
-	processList[fmt.Sprintf("%d", pid)] = init
+	processList[id] = init
 
-	log.G(ctx).Infof("task id is %v, pid is %v  ", id, pid)
+	logrus.FieldLogger(logrus.New()).Info("new Task Successfully")
+	//logrus.FieldLogger(logrus.New()).Infof("cgroupsssssss", cg)
+
 	return &Task{
-		id:        id,
-		pid:       pid,
-		namespace: namespace,
-		monitor:   monitor,
-		events:    events,
+		id:          id,
+		pid:         pid,
+		namespace:   namespace,
+		//cg:			 cg,
+		monitor:     monitor,
+		events:      events,
 		processList: processList,
 	}, nil
 }
 
 // ID of the task
 func (t *Task) ID() string {
+	logrus.FieldLogger(logrus.New()).Info("task ID")
 	return t.id
 }
 
 // Info returns task information about the runtime and namespace
 func (t *Task) Info() runtime.TaskInfo {
+	logrus.FieldLogger(logrus.New()).Info("task Info")
 	return runtime.TaskInfo{
 		ID:        t.id,
 		Runtime:   pluginID,
@@ -99,19 +111,18 @@ func (t *Task) Info() runtime.TaskInfo {
 
 // Start the task
 func (t *Task) Start(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("task Start")
 
-    // t.mu.Lock()
+	// t.mu.Lock()
 	// hasCgroup := t.cg != nil
 	// t.mu.Unlock()
 
-	t.processList[fmt.Sprintf("%d", t.pid)].Start(ctx)
-
+	
 
 	// if !hasCgroup {
-	// 	log.G(ctx).Infoln("Task: load cgroups")
 	// 	cg, err := cgroups.Load(cgroups.V1, cgroups.PidPath(int(t.pid)))
 	// 	if err != nil {
-	// 		return err
+	// 		return errors.Wrap(err, "task start error")
 	// 	}
 	// 	t.mu.Lock()
 	// 	t.cg = cg
@@ -121,7 +132,8 @@ func (t *Task) Start(ctx context.Context) error {
 	// 	}
 	// }
 
-	log.G(ctx).Infoln("Task: start publishing")
+	t.processList[t.id].(*proc.Init).Start(ctx)
+
 	t.events.Publish(ctx, runtime.TaskStartEventTopic, &eventstypes.TaskStart{
 		ContainerID: t.id,
 		Pid:         t.pid,
@@ -131,9 +143,9 @@ func (t *Task) Start(ctx context.Context) error {
 
 // State returns runtime information for the task
 func (t *Task) State(ctx context.Context) (runtime.State, error) {
+	logrus.FieldLogger(logrus.New()).Info("task State")
 
 	p := t.processList[t.id]
-	
 
 	state, err := p.Status(ctx)
 	if err != nil {
@@ -153,6 +165,16 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 	}
 
 	stdio := p.Stdio()
+	// logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+	// 	"Status":     status,
+	// 	"Pid":        t.pid,
+	// 	"Stdin":      stdio.Stdin,
+	// 	"Stdout":     stdio.Stdout,
+	// 	"Stderr":     stdio.Stderr,
+	// 	"Terminal":   stdio.Terminal,
+	// 	"ExitStatus": uint32(p.ExitStatus()),
+	// 	"ExitedAt":   p.ExitedAt(),
+	// }).Info("Container State Successfully")
 
 	return runtime.State{
 		Status:     status,
@@ -167,77 +189,178 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 }
 
 // Pause pauses the container process
-func (t *Task) Pause(context.Context) error {
-    return fmt.Errorf("task pause not implemented")
+func (t *Task) Pause(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("task Pause")
+	p := t.processList[t.id]
+	err := p.(*proc.Init).Pause(ctx)
+	if err != nil {
+		return errors.Wrap(err, "task Pause error")
+	}
+
+	return nil
 }
 
 // Resume unpauses the container process
-func (t *Task) Resume(context.Context) error {
-    return fmt.Errorf("task resume not implemented")
+func (t *Task) Resume(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Info("task Resume")
+	p := t.processList[t.id]
+	err := p.(*proc.Init).Resume(ctx)
+	if err != nil {
+		return errors.Wrap(err, "task Resume error")
+	}
+
+	return nil
 }
 
 // Exec adds a process into the container
-func (t *Task) Exec(context.Context, string, runtime.ExecOpts) (runtime.Process, error) {
-    return nil, fmt.Errorf("task exec not implemented")
+func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runtime.Process, error) {
+	logrus.FieldLogger(logrus.New()).Info("task Exec")
+	p := t.processList[t.id]
+	conf := &proc.ExecConfig{
+		ID:       id,
+		Stdin:    opts.IO.Stdin,
+		Stdout:   opts.IO.Stdout,
+		Stderr:   opts.IO.Stderr,
+		Terminal: opts.IO.Terminal,
+		Spec:     opts.Spec,
+	}
+	process, err := p.(*proc.Init).Exec(ctx, id, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "task Exec error")
+	}
+	t.processList[id] = process
+
+	return &Process{
+		id: id,
+		t:  t,
+	}, nil
 }
 
 // Pids returns all pids
-func (t *Task) Pids(context.Context) ([]runtime.ProcessInfo, error) {
-    return nil, fmt.Errorf("task pids not implemented")
+func (t *Task) Pids(ctx context.Context) ([]runtime.ProcessInfo, error) {
+	logrus.FieldLogger(logrus.New()).Info("task Pids")
+	return nil, fmt.Errorf("task pids not implemented")
 }
 
 // Checkpoint checkpoints a container to an image with live system data
-func (t *Task) Checkpoint(context.Context, string, *types.Any) error {
-    return fmt.Errorf("task checkpoint not implemented")
+func (t *Task) Checkpoint(ctx context.Context, path string, options *types.Any) error {
+	logrus.FieldLogger(logrus.New()).Info("task Checkpoint")
+	return fmt.Errorf("task checkpoint not implemented")
 }
 
 // DeleteProcess deletes a specific exec process via its id
-func (t *Task) DeleteProcess(context.Context, string) (*runtime.Exit, error) {
-    return nil, fmt.Errorf("task delete process not implemented")
+func (t *Task) DeleteProcess(ctx context.Context, id string) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Info("task DeleteProcess")
+	p := t.processList[t.id]
+	err := p.(*proc.ExecProcess).Delete(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "task DeleteProcess error")
+	}
+
+	return &runtime.Exit{
+		Pid:       uint32(p.Pid()),
+		Status:    uint32(p.ExitStatus()),
+		Timestamp: p.ExitedAt(),
+	}, nil
 }
 
 // Update sets the provided resources to a running task
-func (t *Task) Update(context.Context, *types.Any) error {
-    return fmt.Errorf("task update not implemented")
+func (t *Task) Update(ctx context.Context, resources *types.Any) error {
+	logrus.FieldLogger(logrus.New()).Info("task Update")
+	return fmt.Errorf("task update not implemented")
 }
 
 // Process returns a process within the task for the provided id
-func (t *Task) Process(context.Context, string) (runtime.Process, error) {
-    return nil, fmt.Errorf("task process not implemented")
+func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) {
+	logrus.FieldLogger(logrus.New()).Info("task Process")
+	p := &Process{
+		id: id,
+		t:  t,
+	}
+	if _, err := p.State(ctx); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // Metrics returns runtime specific metrics for a task
-func (t *Task) Metrics(context.Context) (interface{}, error) {
-    return nil, fmt.Errorf("task metrics not implemented")
+func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
+	logrus.FieldLogger(logrus.New()).Info("task Metrics")
+	p := t.processList[t.id]
+	stats, err := p.(*proc.Init).Metrics(ctx)
+	if err != nil {
+		return stats, errors.Wrap(err, "task Mertrics error")
+	}
+
+	return stats, nil
 }
 
 // CloseIO closes the provided IO on the task
 func (t *Task) CloseIO(ctx context.Context) error {
-	return fmt.Errorf("task closeIOnot implemented")
+	logrus.FieldLogger(logrus.New()).Info("task CloseIO")
+	process := t.processList[t.id]
+	if stdin := process.Stdin(); stdin != nil {
+		if err := stdin.Close(); err != nil {
+			return errors.Wrap(err, "close stdin error")
+		}
+	}
+	return nil
 }
 
 // Kill the task using the provided signal
 func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
+	logrus.FieldLogger(logrus.New()).Info("task Kill")
 	p := t.processList[t.id]
 	err := p.Kill(ctx, signal, all)
 	if err != nil {
 		return errors.Wrap(err, "task kill error")
 	}
+
 	return nil
 }
 
 // ResizePty changes the side of the task's PTY to the provided width and height
 func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
-	return fmt.Errorf("task resizePty not implemented")
+	logrus.FieldLogger(logrus.New()).Info("task ResizePty")
+	ws := console.WinSize{
+		Width:  uint16(size.Width),
+		Height: uint16(size.Height),
+	}
+
+	p := t.processList[t.id]
+	err := p.Resize(ws)
+	if err != nil {
+		return errors.Wrap(err, "task ResizePty error")
+	}
+
+	return nil
 }
 
 // Wait for the task to exit returning the status and timestamp
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
-	p := t.processList[fmt.Sprintf("%d", t.pid)]
+	logrus.FieldLogger(logrus.New()).Info("task Wait")
+	p := t.processList[t.id]
 	p.Wait()
-    return &runtime.Exit{
-		Pid:		t.pid,
-		Status: 	uint32(p.ExitStatus()),
-		Timestamp:	time.Time{},
+	p.SetExited(0)
+	return &runtime.Exit{
+		Pid:       t.pid,
+		Status:    uint32(p.ExitStatus()),
+		Timestamp: time.Time{},
 	}, nil
+}
+
+// GetProcess gets the specify process
+func (t *Task) GetProcess(id string) proc.Process {
+	return t.processList[id]
+}
+
+// Cgroup returns the underlying cgroup for a linux task
+func (t *Task) Cgroup() (cgroups.Cgroup, error) {
+	logrus.FieldLogger(logrus.New()).Infof("task %v Cgroup", t.id)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.cg == nil {
+		return nil, errors.New("cgroup does not exist")
+	}
+	return t.cg, nil
 }
