@@ -284,7 +284,6 @@ func (p *Init) Wait() {
 		return 
 	}
 	p.exitStatus = int(exitCode)
-	<-p.waitBlock
 }
 
 func (p *Init) resize(ws console.WinSize) error {
@@ -344,7 +343,7 @@ func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 func (p *Init) setExited(status int) {
 	p.exited = time.Now()
 	p.exitStatus = status
-	close(p.waitBlock)
+	// close(p.waitBlock)
 }
 
 // Metrics return the stats of a container
