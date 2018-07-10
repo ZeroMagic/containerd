@@ -23,17 +23,6 @@ import (
 	deviceManager "github.com/kata-containers/runtime/virtcontainers/device/manager"
 )
 
-// controlSocket is the sandbox control socket.
-// It is an hypervisor resource, and for example qemu's control
-// socket is the QMP one.
-const controlSocket = "ctl"
-
-// monitorSocket is the sandbox monitoring socket.
-// It is an hypervisor resource, and is a qmp socket in the qemu case.
-// This is a socket that any monitoring entity will listen to in order
-// to understand if the VM is still alive or not.
-const monitorSocket = "mon"
-
 // vmStartTimeout represents the time in seconds a sandbox can wait before
 // to consider the VM starting operation failed.
 const vmStartTimeout = 10
@@ -70,6 +59,10 @@ type State struct {
 
 	// PCI slot at which the block device backing the container rootfs is attached.
 	RootfsPCIAddr string `json:"rootfsPCIAddr"`
+
+	// Pid is the process id of the sandbox container which is the first
+	// container to be started.
+	Pid int `json:"pid"`
 }
 
 // valid checks that the sandbox state is valid.
@@ -352,6 +345,11 @@ type SandboxConfig struct {
 	// Annotations keys must be unique strings and must be name-spaced
 	// with e.g. reverse domain notation (org.clearlinux.key).
 	Annotations map[string]string
+
+	ShmSize uint64
+
+	// SharePidNs sets all containers to share the same sandbox level pid namespace.
+	SharePidNs bool
 }
 
 // valid checks that the sandbox configuration is valid.
@@ -455,6 +453,9 @@ type Sandbox struct {
 	annotationsLock *sync.RWMutex
 
 	wg *sync.WaitGroup
+
+	shmSize    uint64
+	sharePidNs bool
 }
 
 // ID returns the sandbox identifier string.
@@ -734,6 +735,8 @@ func newSandbox(sandboxConfig SandboxConfig) (*Sandbox, error) {
 		state:           State{},
 		annotationsLock: &sync.RWMutex{},
 		wg:              &sync.WaitGroup{},
+		shmSize:         sandboxConfig.ShmSize,
+		sharePidNs:      sandboxConfig.SharePidNs,
 	}
 
 	if err = globalSandboxList.addSandbox(s); err != nil {
@@ -914,15 +917,9 @@ func (s *Sandbox) createNetwork() error {
 }
 
 func (s *Sandbox) removeNetwork() error {
-	if s.networkNS.NetNsCreated {
-		return s.network.remove(s, s.networkNS)
-	}
-
-	return nil
+	return s.network.remove(s, s.networkNS, s.networkNS.NetNsCreated)
 }
 
-
-// !!!
 // startVM starts the VM.
 func (s *Sandbox) startVM() error {
 	s.Logger().Info("Starting VM")
@@ -1179,6 +1176,13 @@ func (s *Sandbox) stop() error {
 		return err
 	}
 
+	// vm is stopped remove the sandbox shared dir
+	if err := s.agent.cleanupSandbox(s); err != nil {
+		// cleanup resource failed shouldn't block destroy sandbox
+		// just raise a warning
+		s.Logger().WithError(err).Warnf("cleanup sandbox failed")
+	}
+
 	return s.setSandboxState(StateStopped)
 }
 
@@ -1274,6 +1278,15 @@ func (s *Sandbox) decrementSandboxBlockIndex() error {
 	}
 
 	return nil
+}
+
+// setSandboxPid sets the Pid of the the shim process belonging to the
+// sandbox container as the Pid of the sandbox.
+func (s *Sandbox) setSandboxPid(pid int) error {
+	s.state.Pid = pid
+
+	// update on-disk state
+	return s.storage.storeSandboxResource(s.id, stateFileType, s.state)
 }
 
 func (s *Sandbox) setContainersState(state stateString) error {

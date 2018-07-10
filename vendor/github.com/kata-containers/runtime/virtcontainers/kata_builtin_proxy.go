@@ -59,11 +59,6 @@ func (p *kataBuiltInProxy) watchConsole(proto, console string, logger *logrus.En
 		conn    net.Conn
 	)
 
-/////////////
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"console": console,
-	}).Info("!!! Debud proxy")
-
 	switch proto {
 	case consoleProtoUnix:
 		conn, err = net.Dial("unix", console)
