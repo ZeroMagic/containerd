@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	eventstypes "github.com/containerd/containerd/api/events"
 	types "github.com/containerd/containerd/api/types"
@@ -40,6 +41,8 @@ import (
 	errors "github.com/pkg/errors"
 
 	"github.com/sirupsen/logrus"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -235,6 +238,16 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		return nil, err
 	}
 
+	// Notify Client
+	exitedAt := time.Now().UTC()
+	r.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
+		ContainerID: taskID,
+		ID:          taskID,
+		Pid:         uint32(10244),
+		ExitStatus:  128 + uint32(unix.SIGKILL),
+		ExitedAt:    exitedAt,
+	})
+
 	// remove the task
 	r.tasks.Delete(ctx, taskID)
 
@@ -242,6 +255,13 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 	if err := bundle.Delete(); err != nil {
 		log.G(ctx).WithError(err).Error("failed to delete bundle")
 	}
+
+	r.events.Publish(ctx, runtime.TaskDeleteEventTopic, &eventstypes.TaskDelete{
+		ContainerID: taskID,
+		Pid:         uint32(10244),
+		ExitStatus:  128 + uint32(unix.SIGKILL),
+		ExitedAt:    exitedAt,
+	})
 
 	return &runtime.Exit{
 		Pid:        uint32(p.Pid()),
