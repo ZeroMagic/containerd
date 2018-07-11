@@ -126,7 +126,7 @@ func (t *Task) Start(ctx context.Context) error {
 
 // State returns runtime information for the task
 func (t *Task) State(ctx context.Context) (runtime.State, error) {
-	logrus.FieldLogger(logrus.New()).Infof("task %v State", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("kata task %v, State", t.id)
 	response, err := t.shim.State(ctx, &shim.StateRequest{
 		ID: t.id,
 	})

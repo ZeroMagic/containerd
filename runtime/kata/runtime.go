@@ -233,6 +233,7 @@ func (r *Runtime) Get(ctx context.Context, id string) (runtime.Task, error) {
 
 // Tasks returns all the current tasks for the runtime.
 func (r *Runtime) Tasks(ctx context.Context) ([]runtime.Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("kata runtime %v, Tasks", r.state)
 	return r.tasks.GetAll(ctx)
 }
 
