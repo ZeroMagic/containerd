@@ -138,7 +138,7 @@ func (p *Process) Start(ctx context.Context) error {
 func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
 	logrus.FieldLogger(logrus.New()).Info("PPPP process wait")
 	init := p.t.processList[p.t.id]
-	init.Wait()
+	init.Wait(ctx)
 
 	return &runtime.Exit{
 		Timestamp: init.ExitedAt(),
