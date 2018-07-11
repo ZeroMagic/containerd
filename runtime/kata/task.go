@@ -287,7 +287,7 @@ func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
 	logrus.FieldLogger(logrus.New()).Info("TTT task Wait")
 	p := t.processList[t.id]
-	p.Wait()
+	p.Wait(ctx)
 	p.SetExited(0)
 	return &runtime.Exit{
 		Pid:       t.pid,

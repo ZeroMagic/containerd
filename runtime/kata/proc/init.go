@@ -186,31 +186,8 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 }
 
 // Wait for the process to exit
-func (p *Init) Wait() {
-	exitCode, err := p.sandbox.WaitProcess(p.sandbox.ID(), p.sandbox.ID())
-	if err != nil {
-		return 
-	}
-	p.exitStatus = int(exitCode)
+func (p *Init) Wait(ctx context.Context) error {
 
-	// after exiting process, the container will be stopped.
-	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
-	if err != nil {
-		logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
-		return 
-	}
-	
-}
-
-func (p *Init) resize(ws console.WinSize) error {
-	return p.sandbox.WinsizeProcess(p.sandbox.ID(), p.id, uint32(ws.Height), uint32(ws.Width))
-}
-
-func (p *Init) start(ctx context.Context) error {
-	err := server.StartSandbox(ctx, p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to start sandbox")
-	}
 
 	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandbox.ID(), p.sandbox.ID())
 	if err != nil {
@@ -304,6 +281,33 @@ func (p *Init) start(ctx context.Context) error {
 	// go attachStream("stderr", localStderr, stderr)
 
 	wg.Wait()
+
+
+	exitCode, err := p.sandbox.WaitProcess(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		return err
+	}
+	p.exitStatus = int(exitCode)
+
+	// after exiting process, the container will be stopped.
+	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
+		return err
+	}
+	
+	return nil
+}
+
+func (p *Init) resize(ws console.WinSize) error {
+	return p.sandbox.WinsizeProcess(p.sandbox.ID(), p.id, uint32(ws.Height), uint32(ws.Width))
+}
+
+func (p *Init) start(ctx context.Context) error {
+	err := server.StartSandbox(ctx, p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to start sandbox")
+	}
 
 	return nil
 }
