@@ -50,33 +50,14 @@ type Task struct {
 	processList map[string]proc.Process
 }
 
-func newTask(ctx context.Context, id, namespace string, pid uint32, monitor runtime.TaskMonitor, events *exchange.Exchange, opts runtime.CreateOpts, bundle *bundle) (*Task, error) {
-	config := &proc.InitConfig{
-		ID:       id,
-		Rootfs:   opts.Rootfs,
-		Terminal: opts.IO.Terminal,
-		Stdin:    opts.IO.Stdin,
-		Stdout:   opts.IO.Stdout,
-		Stderr:   opts.IO.Stderr,
-	}
-
-	init, err := proc.NewInit(ctx, bundle.path, bundle.workDir, namespace, int(pid), config)
-	if err != nil {
-		return nil, errors.Wrap(err, "new init process error")
-	}
-
-	processList := make(map[string]proc.Process)
-	processList[id] = init
-
-	logrus.FieldLogger(logrus.New()).Info("new Task Successfully")
-	
+func newTask(id, namespace string, pid uint32, monitor runtime.TaskMonitor, events *exchange.Exchange) (*Task, error) {
 	return &Task{
 		id:          id,
 		pid:         pid,
 		namespace:   namespace,
 		monitor:     monitor,
 		events:      events,
-		processList: processList,
+		processList: make(map[string]proc.Process),
 	}, nil
 }
 
