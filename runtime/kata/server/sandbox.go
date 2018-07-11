@@ -234,7 +234,7 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 		SharePidNs: false,
 	}
 
-	sandbox, err := vc.RunSandbox(sandboxConfig)
+	sandbox, err := vc.CreateSandbox(sandboxConfig)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not create sandbox")
 	}
