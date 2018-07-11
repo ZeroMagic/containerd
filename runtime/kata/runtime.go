@@ -20,7 +20,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"io/ioutil"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	eventstypes "github.com/containerd/containerd/api/events"
@@ -40,8 +42,8 @@ import (
 	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 	errors "github.com/pkg/errors"
 
+	"github.com/containerd/containerd/runtime/kata/proc"
 	"github.com/sirupsen/logrus"
-
 	"golang.org/x/sys/unix"
 )
 
@@ -93,6 +95,18 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 		tasks:   runtime.NewTaskList(),
 		db:      m.(*metadata.DB),
 		events:  ic.Events,
+	}
+
+	tasks, err := r.restoreTasks(ic.Context)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: need to add the tasks to the monitor
+	for _, t := range tasks {
+		if err := r.tasks.AddWithNamespace(t.namespace, t); err != nil {
+			return nil, err
+		}
 	}
 
 	log.G(ic.Context).Infoln("Runtime: start containerd-kata plugin")
@@ -160,10 +174,23 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	log.G(ctx).Infof("Runtime: ContainerType is %s\n", containerType)
 
 	// 6. new task. Init the vm, sandbox, and necessary container.
-	t, err := newTask(ctx, id, namespace, pid, r.monitor, r.events, opts, bundle)
+	t, err := newTask(id, namespace, pid, r.monitor, r.events)
 	if err != nil {
 		return nil, err
 	}
+	config := &proc.InitConfig{
+		ID:       id,
+		Rootfs:   opts.Rootfs,
+		Terminal: opts.IO.Terminal,
+		Stdin:    opts.IO.Stdin,
+		Stdout:   opts.IO.Stdout,
+		Stderr:   opts.IO.Stderr,
+	}
+	init, err := proc.NewInit(ctx, bundle.path, bundle.workDir, namespace, int(pid), config)
+	if err != nil {
+		return nil, errors.Wrap(err, "new init process error")
+	}
+	t.processList[id] = init
 
 	if err := r.tasks.Add(ctx, t); err != nil {
 		return nil, err
@@ -272,4 +299,60 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		Status: 	uint32(p.ExitStatus()),
 		Timestamp:	p.ExitedAt(),
 	}, nil
+}
+
+func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, restoreTasks", r.state)
+	dir, err := ioutil.ReadDir(r.state)
+	if err != nil {
+		return nil, err
+	}
+	var o []*Task
+	for _, namespace := range dir {
+		if !namespace.IsDir() {
+			continue
+		}
+		name := namespace.Name()
+		log.G(ctx).WithField("namespace", name).Debug("loading tasks in namespace")
+		tasks, err := r.loadTasks(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		o = append(o, tasks...)
+	}
+	return o, nil
+}
+
+func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("runtime %v, loadTasks", r.state)
+	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
+	if err != nil {
+		return nil, err
+	}
+	var o []*Task
+	for _, path := range dir {
+		if !path.IsDir() {
+			continue
+		}
+		id := path.Name()
+		bundle := loadBundle(
+			id,
+			filepath.Join(r.state, ns, id),
+			filepath.Join(r.root, ns, id),
+		)
+		pidByte, _ := ioutil.ReadFile(filepath.Join(bundle.path, proc.InitPidFile))
+		pidStr := string(pidByte)
+		pid64, err := strconv.ParseInt(pidStr, 10, 32)
+		pid := uint32(pid64)
+		
+		ctx = namespaces.WithNamespace(ctx, ns)
+
+		t, err := newTask(id, ns, pid, r.monitor, r.events)
+		if err != nil {
+			log.G(ctx).WithError(err).Error("loading task type")
+			continue
+		}
+		o = append(o, t)
+	}
+	return o, nil
 }
