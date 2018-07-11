@@ -130,100 +130,7 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 		return nil, errors.Wrap(err, "failed to create sandbox")
 	}
 
-	stdin, stdout, stderr, err := p.sandbox.IOStream(config.ID, config.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get a container's stdio streams from kata")
-	}
-	p.stdin = stdin
-	p.stdout = stdout
-	p.stderr = stderr
-
 	// TODO(ZeroMagic): create with checkpoint
-
-	// create local stdio
-	var (
-		localStdout io.WriteCloser//, localStderr io.WriteCloser
-		localStdin           io.ReadCloser
-		wg               sync.WaitGroup
-	)
-
-	if stdin != nil {
-		localStdin, err = fifo.OpenFifo(ctx, config.Stdin, syscall.O_RDONLY, 0)
-		if err != nil {
-			logrus.FieldLogger(logrus.New()).Errorf("open local stdin: %s", err)
-		}
-		wg.Add(1)
-	}
-
-	if stdout != nil {
-		localStdout, err = fifo.OpenFifo(ctx, config.Stdout, syscall.O_WRONLY, 0)
-		if err != nil {
-			logrus.FieldLogger(logrus.New()).Errorf("open local stdout: %s", err)
-		}
-		wg.Add(1)
-	}
-
-	// if stderr != nil {
-	// 	localStderr, err = fifo.OpenFifo(ctx, config.Stderr, syscall.O_WRONLY, 0)
-	// 	if err != nil {
-	// 		logrus.FieldLogger(logrus.New()).Errorf("open local stderr: %s", err)
-	// 	}
-	// 	wg.Add(1)
-	// }
-
-	// Connect stdin of container.
-	go func() {
-		if stdin == nil {
-			return
-		}
-		logrus.FieldLogger(logrus.New()).Info("stdin: begin")
-		buf := bufPool.Get().(*[]byte)
-		defer bufPool.Put(buf)
-		_, err = io.CopyBuffer(stdin, localStdin, *buf)
-		if err == io.ErrClosedPipe {
-			err = nil
-		}
-		if err != nil {
-			logrus.FieldLogger(logrus.New()).Errorf("stdin copy: %s", err)
-		}
-		
-		logrus.FieldLogger(logrus.New()).Info("stdin: end")
-		wg.Done()
-	}()
-
-	// stdout/stderr
-	attachStream := func(name string, stream io.Writer, streamPipe io.Reader) {
-		if stream == nil {
-			return
-		}
-
-		logrus.FieldLogger(logrus.New()).Infof("%s: begin", name)
-		buf := bufPool.Get().(*[]byte)
-		defer bufPool.Put(buf)
-
-		_, err := io.CopyBuffer(stream, streamPipe, *buf)
-		if err == io.ErrClosedPipe {
-			err = nil
-		}
-		if err != nil {
-			logrus.FieldLogger(logrus.New()).Errorf("%s copy: %v", name, err)
-		}
-		
-		if localStdin != nil {
-			localStdin.Close()
-		}
-
-		if closer, ok := stream.(io.Closer); ok {
-			closer.Close()
-		}
-		logrus.FieldLogger(logrus.New()).Infof("%s: end", name)
-		wg.Done()
-	}
-
-	go attachStream("stdout", localStdout, stdout)
-	// go attachStream("stderr", localStderr, stderr)
-
-	wg.Wait()
 
 	success = true
 	return p, nil
@@ -304,6 +211,99 @@ func (p *Init) start(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to start sandbox")
 	}
+
+	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandbox.ID(), p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to get a container's stdio streams from kata")
+	}
+	p.stdin = stdin
+	p.stdout = stdout
+	p.stderr = stderr
+
+	// create local stdio
+	var (
+		localStdout io.WriteCloser//, localStderr io.WriteCloser
+		localStdin           io.ReadCloser
+		wg               sync.WaitGroup
+	)
+
+	if stdin != nil {
+		localStdin, err = fifo.OpenFifo(ctx, p.stdio.Stdin, syscall.O_RDONLY, 0)
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("open local stdin: %s", err)
+		}
+		wg.Add(1)
+	}
+
+	if stdout != nil {
+		localStdout, err = fifo.OpenFifo(ctx, p.stdio.Stdout, syscall.O_WRONLY, 0)
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("open local stdout: %s", err)
+		}
+		wg.Add(1)
+	}
+
+	// if stderr != nil {
+	// 	localStderr, err = fifo.OpenFifo(ctx, config.Stderr, syscall.O_WRONLY, 0)
+	// 	if err != nil {
+	// 		logrus.FieldLogger(logrus.New()).Errorf("open local stderr: %s", err)
+	// 	}
+	// 	wg.Add(1)
+	// }
+
+	// Connect stdin of container.
+	go func() {
+		if stdin == nil {
+			return
+		}
+		logrus.FieldLogger(logrus.New()).Info("stdin: begin")
+		buf := bufPool.Get().(*[]byte)
+		defer bufPool.Put(buf)
+		_, err = io.CopyBuffer(stdin, localStdin, *buf)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("stdin copy: %s", err)
+		}
+		
+		logrus.FieldLogger(logrus.New()).Info("stdin: end")
+		wg.Done()
+	}()
+
+	// stdout/stderr
+	attachStream := func(name string, stream io.Writer, streamPipe io.Reader) {
+		if stream == nil {
+			return
+		}
+
+		logrus.FieldLogger(logrus.New()).Infof("%s: begin", name)
+		buf := bufPool.Get().(*[]byte)
+		defer bufPool.Put(buf)
+
+		_, err := io.CopyBuffer(stream, streamPipe, *buf)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("%s copy: %v", name, err)
+		}
+		
+		if localStdin != nil {
+			localStdin.Close()
+		}
+
+		if closer, ok := stream.(io.Closer); ok {
+			closer.Close()
+		}
+		logrus.FieldLogger(logrus.New()).Infof("%s: end", name)
+		wg.Done()
+	}
+
+	go attachStream("stdout", localStdout, stdout)
+	// go attachStream("stderr", localStderr, stderr)
+
+	wg.Wait()
 
 	return nil
 }
