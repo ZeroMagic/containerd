@@ -116,6 +116,8 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		return nil, err
 	}
 
+	log.G(ctx).Infof("Runtime: Namespace is %s\n", namespace)
+
 	if err := identifiers.Validate(id); err != nil {
 		return nil, errors.Wrapf(err, "invalid task id")
 	}
