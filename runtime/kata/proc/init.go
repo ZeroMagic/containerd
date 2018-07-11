@@ -286,17 +286,13 @@ func (p *Init) Wait() {
 	}
 	p.exitStatus = int(exitCode)
 
+	// after exiting process, the container will be stopped.
 	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
 	if err != nil {
 		logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
 		return 
 	}
-
-	_, err = vc.StopSandbox(p.sandbox.ID())
-	if err != nil {
-		logrus.FieldLogger(logrus.New()).Infof("failed to stop sandbox, %v", err)
-		return 
-	}
+	
 }
 
 func (p *Init) resize(ws console.WinSize) error {
@@ -315,10 +311,16 @@ func (p *Init) start(ctx context.Context) error {
 func (p *Init) delete(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Infof("init delete %v", p.id)
 
-	// err := p.kill(ctx, uint32(syscall.SIGKILL), true)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to delete container")
-	// }
+	_, err = vc.StopSandbox(p.sandbox.ID())
+	if err != nil {
+		logrus.FieldLogger(logrus.New()).Infof("failed to stop sandbox, %v", err)
+		return 
+	}
+
+	_, err := vc.DeleteSandbox(p.sandbox.ID())
+	if err != nil {
+		return errors.Wrap(err, "failed to delete container")
+	}
 
 	return nil
 }
