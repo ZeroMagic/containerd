@@ -44,12 +44,15 @@ import (
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	shim "github.com/containerd/containerd/runtime/linux/shim/v1"
 	runc "github.com/containerd/go-runc"
+	"github.com/containerd/cri/pkg/annotations"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+
+	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var (
@@ -161,6 +164,17 @@ func (r *Runtime) ID() string {
 // Create a new task
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (_ runtime.Task, err error) {
 	logrus.FieldLogger(logrus.New()).Infof("runtime %v, Create", r.state)
+
+	// annotation
+	specAny, err := typeurl.UnmarshalAny(opts.Spec)
+	if err != nil {
+		return nil, err
+	}
+	spec := specAny.(*runtimespec.Spec)
+	containerType := spec.Annotations[annotations.ContainerType]
+	log.G(ctx).Infof("Runtime: ContainerType is %s\n", containerType)
+	// annotation
+
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
