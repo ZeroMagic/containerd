@@ -88,7 +88,7 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 
 	// Define the container command and bundle.
 	container := vc.ContainerConfig{
-		ID:     id,
+		// ID:     id,
 		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/default/" + id + "/rootfs",
 		Cmd:    cmd,
 		Annotations: map[string]string{
