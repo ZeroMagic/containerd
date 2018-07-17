@@ -98,7 +98,7 @@ func (t *Task) Info() runtime.TaskInfo {
 
 // Start the task
 func (t *Task) Start(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Infof("[Task] %d Start", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] %s Start", t.id)
 
 	var err error
 
@@ -125,7 +125,7 @@ func (t *Task) Start(ctx context.Context) error {
 
 // State returns runtime information for the task
 func (t *Task) State(ctx context.Context) (runtime.State, error) {
-	logrus.FieldLogger(logrus.New()).Infof("[Task] %d State", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] %s State", t.id)
 
 	var taskState string
 
@@ -171,7 +171,7 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 
 // Pause pauses the container process
 func (t *Task) Pause(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Infof("[Task] %d Pause", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] %s Pause", t.id)
 	if t.containerType == annotations.ContainerTypeSandbox {
 		err := t.sandbox.Pause()
 		if err != nil {
@@ -191,7 +191,7 @@ func (t *Task) Pause(ctx context.Context) error {
 
 // Resume unpauses the container process
 func (t *Task) Resume(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("[Task] %d Resume", t.id)
+	logrus.FieldLogger(logrus.New()).Info("[Task] %s Resume", t.id)
 
 	if t.containerType == annotations.ContainerTypeSandbox {
 		err := t.sandbox.Resume()
@@ -285,7 +285,7 @@ func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) 
 
 // Metrics returns runtime specific metrics for a task
 func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
-	logrus.FieldLogger(logrus.New()).Info("[Task] %d Metrics", t.id)
+	logrus.FieldLogger(logrus.New()).Info("[Task] %s Metrics", t.id)
 
 	stats, err := vc.StatsContainer(t.sandboxID, t.id)
 	if err != nil {
@@ -297,7 +297,7 @@ func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
 
 // CloseIO closes the provided IO on the task
 func (t *Task) CloseIO(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("[Task] %d CloseIO", t.id)
+	logrus.FieldLogger(logrus.New()).Info("[Task] %s CloseIO", t.id)
 	
 	if t.stdin != nil {
 		if err := t.stdin.Close(); err != nil {
@@ -310,7 +310,7 @@ func (t *Task) CloseIO(ctx context.Context) error {
 
 // Kill the task using the provided signal
 func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
-	logrus.FieldLogger(logrus.New()).Info("[Task] %d Kill", t.id)
+	logrus.FieldLogger(logrus.New()).Info("[Task] %s Kill", t.id)
 
 	err := vc.KillContainer(t.sandboxID, t.id, syscall.Signal(signal), all)
 	if err != nil {
@@ -339,7 +339,7 @@ func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 
 // Wait for the task to exit returning the status and timestamp
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("[Task] %d Wait", t.id)
+	logrus.FieldLogger(logrus.New()).Info("[Task] %s Wait", t.id)
 
 	// TODO: here we need to identify a exec process and a container process
 	exitCode, err := t.sandbox.WaitProcess(t.id, t.id)

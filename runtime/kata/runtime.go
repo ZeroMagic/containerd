@@ -128,7 +128,7 @@ func (r *Runtime) ID() string {
 
 // Create creates a task with the provided id and options.
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (runtime.Task, error) {
-	logrus.FieldLogger(logrus.New()).Info("[Runtime] %d create", id)
+	logrus.FieldLogger(logrus.New()).Info("[Runtime] %s create", id)
 
 	var err error
 
@@ -177,7 +177,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	}
 	spec := s.(*runtimespec.Spec)
 	containerType := spec.Annotations[annotations.ContainerType]
-	log.G(ctx).Infof("Runtime: ContainerType is %s\n", containerType)
+	log.G(ctx).Infof("Runtime: ContainerType is %s", containerType)
 	sandboxID := spec.Annotations[annotations.SandboxID]
 
 	// 6. new task. Init the vm, sandbox, and necessary container.
@@ -236,13 +236,13 @@ func (r *Runtime) Get(ctx context.Context, id string) (runtime.Task, error) {
 
 // Tasks returns all the current tasks for the runtime.
 func (r *Runtime) Tasks(ctx context.Context) ([]runtime.Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("Runtime %v, Tasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("Runtime %s, Tasks", r.state)
 	return r.tasks.GetAll(ctx)
 }
 
 // Delete removes the task in the runtime.
 func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %d Delete", t.ID())
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %s Delete", t.ID())
 
 	task := t.(*Task)
 	taskID := task.ID()
@@ -316,7 +316,7 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 }
 
 func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %v, restoreTasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %s, restoreTasks", r.state)
 	dir, err := ioutil.ReadDir(r.state)
 	if err != nil {
 		return nil, err
@@ -338,7 +338,7 @@ func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
 }
 
 func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %v, loadTasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %s, loadTasks", r.state)
 	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
 	if err != nil {
 		return nil, err
