@@ -35,7 +35,6 @@ import (
 	"github.com/containerd/ttrpc"
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
-	"github.com/stevvooe/ttrpc"
 
 	"github.com/sirupsen/logrus"
 )

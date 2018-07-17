@@ -28,7 +28,6 @@ import (
 	shim "github.com/containerd/containerd/runtime/shim/v1"
 	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
-	"github.com/stevvooe/ttrpc"
 
 	"github.com/sirupsen/logrus"
 )
