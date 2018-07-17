@@ -32,6 +32,8 @@ import (
 	vc "github.com/kata-containers/runtime/virtcontainers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+
+	"golang.org/x/sys/unix"
 )
 
 // Stdio of a task
@@ -331,6 +333,14 @@ func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
 		return errors.New(ErrContainerType)
 	}
 	logrus.FieldLogger(logrus.New()).Infof("[Task] %s Kill END", t.id)
+
+	t.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
+		ContainerID: t.id,
+		ID:          t.id,
+		Pid:         t.pid,
+		ExitStatus:  128 + uint32(unix.SIGKILL),
+		ExitedAt:    time.Now(),
+	})
 
 	return nil
 }
