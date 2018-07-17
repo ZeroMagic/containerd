@@ -58,6 +58,7 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 		NoNewPrivileges: true,
 	}
 
+	// TODO: namespace would be solved
 	containerConfig := vc.ContainerConfig{
 		ID:     id,
 		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/default/" + id + "/rootfs",
@@ -66,6 +67,8 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id,
 		},
 	}
+
+	logrus.FieldLogger(logrus.New()).Info("##### Creating Container #####")
 
 	sandbox, container, err := vc.CreateContainer(sandboxID, containerConfig)
 	if err != nil {
