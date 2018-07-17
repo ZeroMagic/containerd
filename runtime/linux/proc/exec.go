@@ -140,7 +140,7 @@ func (e *execProcess) Stdin() io.Closer {
 	return e.stdin
 }
 
-func (e *execProcess) Stdio() Stdio {
+func (e *execProcess) Stdio() proc.Stdio {
 	logrus.FieldLogger(logrus.New()).Infof("execProcess %v, Stdio", e.id)
 	return e.stdio
 }

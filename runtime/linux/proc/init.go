@@ -457,7 +457,7 @@ func (p *Init) update(context context.Context, r *google_protobuf.Any) error {
 }
 
 // Stdio of the process
-func (p *Init) Stdio() Stdio {
+func (p *Init) Stdio() proc.Stdio {
 	logrus.FieldLogger(logrus.New()).Infof("Init %v, Stdio", p.id)
 	return p.stdio
 }
