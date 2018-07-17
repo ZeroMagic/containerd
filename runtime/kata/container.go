@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 	"sync"
 	"syscall"
@@ -58,16 +59,31 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 		NoNewPrivileges: true,
 	}
 
+	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
+	configJ, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		fmt.Print(err)
+	}
+	str := string(configJ)
+	str = strings.Replace(str, "bounding", "Bounding", -1)
+	str = strings.Replace(str, "effective", "Effective", -1)
+	str = strings.Replace(str, "inheritable", "Inheritable", -1)
+	str = strings.Replace(str, "permitted", "Permitted", -1)
+	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+
 	// TODO: namespace would be solved
 	containerConfig := vc.ContainerConfig{
 		ID:     id,
 		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
 		Cmd:    cmd,
 		Annotations: map[string]string{
+			annotations.ConfigJSONKey:	str,
 			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
+			annotations.ContainerTypeKey:	 string(vc.PodContainer),
 		},
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### config.json #####", str)
 	logrus.FieldLogger(logrus.New()).Info("##### Creating Container #####")
 
 	sandbox, container, err := vc.CreateContainer(sandboxID, containerConfig)

@@ -308,17 +308,27 @@ func (t *Task) CloseIO(ctx context.Context) error {
 
 // Kill the task using the provided signal
 func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
-	logrus.FieldLogger(logrus.New()).Info("[Task] %s Kill", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] %s Kill", t.id)
 
-	err := vc.KillContainer(t.sandboxID, t.id, syscall.Signal(signal), all)
-	if err != nil {
-		return errors.Wrap(err, "task kill error")
-	}
+	if t.containerType == annotations.ContainerTypeSandbox {
+		vcSandbox, err := vc.StopSandbox(t.sandboxID)
+		if err != nil {
+			return errors.Wrapf(err, "task kill error")
+		}
+		t.sandbox = vcSandbox.(*vc.Sandbox)
+	} else if t.containerType == annotations.ContainerTypeContainer {
+		err := vc.KillContainer(t.sandboxID, t.id, syscall.Signal(signal), all)
+		if err != nil {
+			return errors.Wrap(err, "task kill error")
+		}
 
-	_, err = vc.StopContainer(t.sandboxID, t.id)
-	if err != nil {
-		errors.Wrap(err, "failed to stop container")
-		return err
+		_, err = vc.StopContainer(t.sandboxID, t.id)
+		if err != nil {
+			errors.Wrap(err, "failed to stop container")
+			return err
+		}
+	} else {
+		return errors.New(ErrContainerType)
 	}
 
 	return nil
