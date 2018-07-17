@@ -127,7 +127,7 @@ func (r *Runtime) ID() string {
 
 // Create creates a task with the provided id and options.
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (runtime.Task, error) {
-	logrus.FieldLogger(logrus.New()).Info("[Runtime] %s create", id)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %s create", id)
 
 	var err error
 
@@ -195,7 +195,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 			return nil, errors.Wrapf(err, "create task error")
 		}
 	} else if containerType == annotations.ContainerTypeContainer {
-		t.sandbox, t.container, err = CreateContainer(id, sandboxID)
+		t.sandbox, t.container, err = CreateContainer(t.id, t.sandboxID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "create task error")
 		}
