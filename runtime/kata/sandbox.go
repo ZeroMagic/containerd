@@ -104,8 +104,9 @@ func CreateSandbox(id string, ) (*vc.Sandbox, error) {
 			InterworkingModel:	2,
 		},
 
+		// TODO: namespace would be solved
 		Annotations: map[string]string{
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id,
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
 		},
 
 		ShmSize:	uint64(67108864),

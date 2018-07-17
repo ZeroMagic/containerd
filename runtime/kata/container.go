@@ -61,10 +61,10 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 	// TODO: namespace would be solved
 	containerConfig := vc.ContainerConfig{
 		ID:     id,
-		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/default/" + id + "/rootfs",
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
 		Cmd:    cmd,
 		Annotations: map[string]string{
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id,
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
 		},
 	}
 
