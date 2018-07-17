@@ -86,6 +86,8 @@ make && make install
         mutation_threshold = 100
         schedule_delay = "0s"
         startup_delay = "100ms"
+
+执行`containerd -l trace`
     
 
 3、安装crictl
