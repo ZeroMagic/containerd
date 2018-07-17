@@ -330,6 +330,7 @@ func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
 	} else {
 		return errors.New(ErrContainerType)
 	}
+	logrus.FieldLogger(logrus.New()).Infof("[Task] %s Kill END", t.id)
 
 	return nil
 }
