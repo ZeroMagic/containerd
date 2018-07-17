@@ -19,13 +19,13 @@ package kata
 import (
 	"context"
 
-	"github.com/containerd/console"
-	eventstypes "github.com/containerd/containerd/api/events"
+	// "github.com/containerd/console"
+	// eventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/runtime"
-	vc "github.com/kata-containers/runtime/virtcontainers"
-	errors "github.com/pkg/errors"
+	// vc "github.com/kata-containers/runtime/virtcontainers"
+	// errors "github.com/pkg/errors"
 
-	"github.com/containerd/containerd/runtime/kata/proc"
+	// "github.com/containerd/containerd/runtime/kata/proc"
 
 	"github.com/sirupsen/logrus"
 )
@@ -43,93 +43,94 @@ func (p *Process) ID() string {
 
 // State returns the process state
 func (p *Process) State(ctx context.Context) (runtime.State, error) {
-	process := p.t.processList[p.t.id]
-	state, err := process.Status(ctx)
-	if err != nil {
-		return runtime.State{}, errors.Wrap(err, "process state error")
-	}
+	// process := p.t.processList[p.t.id]
+	// state, err := process.Status(ctx)
+	// if err != nil {
+	// 	return runtime.State{}, errors.Wrap(err, "process state error")
+	// }
 
-	logrus.FieldLogger(logrus.New()).Infof("PPPP process state %v", state)
+	// logrus.FieldLogger(logrus.New()).Infof("PPPP process state %v", state)
 
-	var status runtime.Status
-	switch state {
-	case string(vc.StateReady):
-		status = runtime.CreatedStatus
-	case string(vc.StateRunning):
-		status = runtime.RunningStatus
-	case string(vc.StatePaused):
-		status = runtime.PausedStatus
-	case string(vc.StateStopped):
-		status = runtime.StoppedStatus
-	}
+	// var status runtime.Status
+	// switch state {
+	// case string(vc.StateReady):
+	// 	status = runtime.CreatedStatus
+	// case string(vc.StateRunning):
+	// 	status = runtime.RunningStatus
+	// case string(vc.StatePaused):
+	// 	status = runtime.PausedStatus
+	// case string(vc.StateStopped):
+	// 	status = runtime.StoppedStatus
+	// }
 
-	stdio := process.Stdio()
+	// stdio := process.Stdio()
 
-	return runtime.State{
-		Status:     status,
-		Pid:        p.t.pid,
-		Stdin:      stdio.Stdin,
-		Stdout:     stdio.Stdout,
-		Stderr:     stdio.Stderr,
-		Terminal:   stdio.Terminal,
-		ExitStatus: uint32(process.ExitStatus()),
-		ExitedAt:   process.ExitedAt(),
-	}, nil
+	// return runtime.State{
+	// 	Status:     status,
+	// 	Pid:        p.t.pid,
+	// 	Stdin:      stdio.Stdin,
+	// 	Stdout:     stdio.Stdout,
+	// 	Stderr:     stdio.Stderr,
+	// 	Terminal:   stdio.Terminal,
+	// 	ExitStatus: uint32(process.ExitStatus()),
+	// 	ExitedAt:   process.ExitedAt(),
+	// }, nil
+	return runtime.State{}, nil
 }
 
 // Kill signals a container
 func (p *Process) Kill(ctx context.Context, signal uint32, _ bool) error {
 	logrus.FieldLogger(logrus.New()).Info("PPPP process kill")
-	process := p.t.processList[p.t.id]
-	err := process.Kill(ctx, signal, false)
-	if err != nil {
-		return errors.Wrap(err, "process kill error")
-	}
+	// process := p.t.processList[p.t.id]
+	// err := process.Kill(ctx, signal, false)
+	// if err != nil {
+	// 	return errors.Wrap(err, "process kill error")
+	// }
 
 	return nil
 }
 
 // ResizePty resizes the processes pty/console
 func (p *Process) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
-	ws := console.WinSize{
-		Width:  uint16(size.Width),
-		Height: uint16(size.Height),
-	}
+	// ws := console.WinSize{
+	// 	Width:  uint16(size.Width),
+	// 	Height: uint16(size.Height),
+	// }
 
-	process := p.t.processList[p.t.id]
-	err := process.Resize(ws)
-	if err != nil {
-		return errors.Wrap(err, "process ResizePty error")
-	}
+	// process := p.t.processList[p.t.id]
+	// err := process.Resize(ws)
+	// if err != nil {
+	// 	return errors.Wrap(err, "process ResizePty error")
+	// }
 
 	return nil
 }
 
 // CloseIO closes the processes stdin
 func (p *Process) CloseIO(ctx context.Context) error {
-	process := p.t.processList[p.t.id]
-	if stdin := process.Stdin(); stdin != nil {
-		if err := stdin.Close(); err != nil {
-			return errors.Wrap(err, "process close stdin error")
-		}
-	}
+	// process := p.t.processList[p.t.id]
+	// if stdin := process.Stdin(); stdin != nil {
+	// 	if err := stdin.Close(); err != nil {
+	// 		return errors.Wrap(err, "process close stdin error")
+	// 	}
+	// }
 	return nil
 }
 
 // Start the container's user defined process
 func (p *Process) Start(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Info("PPPP process start")
-	process := p.t.processList[p.id]
-	err := process.(*proc.Init).Start(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "process start error")
-	}
+	// process := p.t.processList[p.id]
+	// err := process.(*proc.Init).Start(ctx)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "process start error")
+	// }
 
-	p.t.events.Publish(ctx, runtime.TaskExecStartedEventTopic, &eventstypes.TaskExecStarted{
-		ContainerID: p.t.id,
-		Pid:         p.t.pid,
-		ExecID:      p.id,
-	})
+	// p.t.events.Publish(ctx, runtime.TaskExecStartedEventTopic, &eventstypes.TaskExecStarted{
+	// 	ContainerID: p.t.id,
+	// 	Pid:         p.t.pid,
+	// 	ExecID:      p.id,
+	// })
 
 	return nil
 }
@@ -137,11 +138,12 @@ func (p *Process) Start(ctx context.Context) error {
 // Wait for the process to exit
 func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
 	logrus.FieldLogger(logrus.New()).Info("PPPP process wait")
-	init := p.t.processList[p.t.id]
-	init.Wait(ctx)
+	// init := p.t.processList[p.t.id]
+	// init.Wait(ctx)
 
-	return &runtime.Exit{
-		Timestamp: init.ExitedAt(),
-		Status:    uint32(init.ExitStatus()),
-	}, nil
+	// return &runtime.Exit{
+	// 	Timestamp: init.ExitedAt(),
+	// 	Status:    uint32(init.ExitStatus()),
+	// }, nil
+	return &runtime.Exit{}, nil
 }

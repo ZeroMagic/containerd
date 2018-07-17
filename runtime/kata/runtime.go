@@ -43,13 +43,18 @@ import (
 	errors "github.com/pkg/errors"
 
 	"github.com/containerd/containerd/runtime/kata/proc"
+	"github.com/containerd/containerd/runtime/kata/server"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	vc "github.com/kata-containers/runtime/virtcontainers"
 )
 
 const (
 	// RuntimeName is the name of new runtime
 	RuntimeName = "kata-runtime"
+
+	// ErrContainerType represents the specific container type which does not exist 
+	ErrContainerType = "the containerType does not exist"
 )
 
 var (
@@ -123,14 +128,15 @@ func (r *Runtime) ID() string {
 
 // Create creates a task with the provided id and options.
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (runtime.Task, error) {
+	logrus.FieldLogger(logrus.New()).Info("[Runtime] %d create", id)
+
+	var err error
 
 	// 1. get namespace
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	log.G(ctx).Infof("Runtime: Namespace is %s\n", namespace)
 
 	if err := identifiers.Validate(id); err != nil {
 		return nil, errors.Wrapf(err, "invalid task id")
@@ -150,7 +156,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		}
 	}()
 
-	// 3. get pid for vm. Now we use the specify pid.
+	// 3. fake pid. Now we use the specify pid.
 	var pid uint32
 	pid = 10244
 
@@ -164,7 +170,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		})
 	}
 
-	// 5. With containerType, we can tell sandbox from container. In the future, we will use the variable.
+	// 5. With containerType, we can tell sandbox from container.
 	s, err := typeurl.UnmarshalAny(opts.Spec)
 	if err != nil {
 		return nil, err
@@ -172,41 +178,38 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	spec := s.(*runtimespec.Spec)
 	containerType := spec.Annotations[annotations.ContainerType]
 	log.G(ctx).Infof("Runtime: ContainerType is %s\n", containerType)
+	sandboxID := spec.Annotations[annotations.SandboxID]
 
 	// 6. new task. Init the vm, sandbox, and necessary container.
-	t, err := newTask(id, namespace, pid, r.monitor, r.events)
+	t, err := newTask(id, pid, namespace, r.monitor, r.events)
 	if err != nil {
 		return nil, err
 	}
-	config := &proc.InitConfig{
-		ID:       id,
-		Rootfs:   opts.Rootfs,
-		Terminal: opts.IO.Terminal,
-		Stdin:    opts.IO.Stdin,
-		Stdout:   opts.IO.Stdout,
-		Stderr:   opts.IO.Stderr,
-	}
-	init, err := proc.NewInit(ctx, bundle.path, bundle.workDir, namespace, int(pid), config)
-	if err != nil {
-		return nil, errors.Wrap(err, "new init process error")
-	}
-	t.processList[id] = init
+	t.containerType = containerType
+	t.sandboxID = sandboxID
 
+	// 7. create sandbox or container
+	// TODO: need to add config
+	if containerType == annotations.ContainerTypeSandbox {
+		t.sandbox, err = server.CreateSandbox(id)
+		if err != nil {
+			return nil, errors.Wrapf(err, "create task error")
+		}
+	} else if containerType == annotations.ContainerTypeContainer {
+		t.sandbox, t.container, err = server.CreateContainer(id, sandboxID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "create task error")
+		}
+	} else {
+		return nil, errors.New(ErrContainerType)
+	}
+
+	// 8. add the task to taskList
 	if err := r.tasks.Add(ctx, t); err != nil {
 		return nil, err
 	}
-	// 7. after the task is created, add it to the monitor if it has a cgroup
-	// this can be different on a checkpoint/restore
-	// if t.cg != nil {
-	// 	if err = r.monitor.Monitor(t); err != nil {
-	// 		if _, err := r.Delete(ctx, t); err != nil {
-	// 			log.G(ctx).WithError(err).Error("deleting task after failed monitor")
-	// 		}
-	// 		return nil, err
-	// 	}
-	// }
 
-	logrus.FieldLogger(logrus.New()).Info("RR--Runtime create a task Successfully")
+	logrus.FieldLogger(logrus.New()).Info("[Runtime] create a task Successfully")
 
 	// 8. publish create event
 	r.events.Publish(ctx, runtime.TaskCreateEventTopic, &eventstypes.TaskCreate{
@@ -233,16 +236,16 @@ func (r *Runtime) Get(ctx context.Context, id string) (runtime.Task, error) {
 
 // Tasks returns all the current tasks for the runtime.
 func (r *Runtime) Tasks(ctx context.Context) ([]runtime.Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("kata runtime %v, Tasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("Runtime %v, Tasks", r.state)
 	return r.tasks.GetAll(ctx)
 }
 
 // Delete removes the task in the runtime.
 func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %d Delete", t.ID())
 
-	// monitor will be handled
-
-	taskID := t.ID()
+	task := t.(*Task)
+	taskID := task.ID()
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -262,22 +265,32 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		}).Warnf("unmount task rootfs")
 	}
 
-
-	logrus.FieldLogger(logrus.New()).Infof("RR--Runtime Delete task %v", taskID)
-	// delete process
-	p := t.(*Task).GetProcess(taskID)
-	if err := p.Delete(ctx); err != nil {
-		return nil, err
+	containerType := task.containerType
+	
+	// delete the task
+	if containerType == annotations.ContainerTypeSandbox {
+		sandbox, err := vc.DeleteSandbox(task.sandboxID)
+		if err != nil {
+			return &runtime.Exit{}, errors.Wrap(err, "runtime delete error")
+		}
+		task.sandbox = sandbox.(*vc.Sandbox)
+	} else if containerType == annotations.ContainerTypeContainer {
+		container, err := vc.DeleteContainer(task.sandboxID, taskID)
+		if err != nil {
+			return &runtime.Exit{}, errors.Wrap(err, "runtime delete error")
+		}
+		task.container = container.(*vc.Container)
+	} else {
+		return &runtime.Exit{}, errors.New(ErrContainerType)
 	}
 
 	// Notify Client
-	exitedAt := time.Now().UTC()
 	r.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
 		ContainerID: taskID,
 		ID:          taskID,
-		Pid:         uint32(10244),
+		Pid:         task.pid,
 		ExitStatus:  128 + uint32(unix.SIGKILL),
-		ExitedAt:    exitedAt,
+		ExitedAt:    time.Now(),
 	})
 
 	// remove the task
@@ -290,20 +303,20 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 
 	r.events.Publish(ctx, runtime.TaskDeleteEventTopic, &eventstypes.TaskDelete{
 		ContainerID: taskID,
-		Pid:         uint32(10244),
+		Pid:         task.pid,
 		ExitStatus:  128 + uint32(unix.SIGKILL),
-		ExitedAt:    exitedAt,
+		ExitedAt:    time.Now(),
 	})
 
 	return &runtime.Exit{
-		Pid:        uint32(p.Pid()),
-		Status: 	uint32(p.ExitStatus()),
-		Timestamp:	p.ExitedAt(),
+		Pid:        task.pid,
+		Status: 	task.exitCode,
+		Timestamp:	time.Now(),
 	}, nil
 }
 
 func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("runtime %v, restoreTasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %v, restoreTasks", r.state)
 	dir, err := ioutil.ReadDir(r.state)
 	if err != nil {
 		return nil, err
@@ -325,7 +338,7 @@ func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
 }
 
 func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("runtime %v, loadTasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %v, loadTasks", r.state)
 	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
 	if err != nil {
 		return nil, err
@@ -348,7 +361,7 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 		
 		ctx = namespaces.WithNamespace(ctx, ns)
 
-		t, err := newTask(id, ns, pid, r.monitor, r.events)
+		t, err := newTask(id, pid, ns, r.monitor, r.events)
 		if err != nil {
 			log.G(ctx).WithError(err).Error("loading task type")
 			continue

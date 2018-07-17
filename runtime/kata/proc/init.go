@@ -20,20 +20,20 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"os"
-	"path/filepath"
+	// "os"
+	// "path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/containerd/fifo"
 	"github.com/containerd/console"
-	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/mount"
+	// "github.com/containerd/containerd/log"
+	// "github.com/containerd/containerd/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 
-	"github.com/containerd/containerd/runtime/kata/server"
+	// "github.com/containerd/containerd/runtime/kata/server"
 
 	vc "github.com/kata-containers/runtime/virtcontainers"
 
@@ -79,61 +79,62 @@ type Init struct {
 
 // NewInit returns a new init process
 func NewInit(ctx context.Context, path, workDir, namespace string, pid int, config *InitConfig) (*Init, error) {
-	var (
-		success bool
-		err     error
-	)
+	// var (
+	// 	success bool
+	// 	err     error
+	// )
 
-	rootfs := filepath.Join(path, "rootfs")
-	defer func() {
-		if success {
-			return
-		}
-		if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
-			log.G(ctx).WithError(err2).Warn("Failed to cleanup rootfs mount")
-		}
-	}()
+	// rootfs := filepath.Join(path, "rootfs")
+	// defer func() {
+	// 	if success {
+	// 		return
+	// 	}
+	// 	if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
+	// 		log.G(ctx).WithError(err2).Warn("Failed to cleanup rootfs mount")
+	// 	}
+	// }()
 
-	for _, rm := range config.Rootfs {
-		m := &mount.Mount{
-			Type:    rm.Type,
-			Source:  rm.Source,
-			Options: rm.Options,
-		}
-		if err := m.Mount(rootfs); err != nil {
-			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
-		}
-	}
+	// for _, rm := range config.Rootfs {
+	// 	m := &mount.Mount{
+	// 		Type:    rm.Type,
+	// 		Source:  rm.Source,
+	// 		Options: rm.Options,
+	// 	}
+	// 	if err := m.Mount(rootfs); err != nil {
+	// 		return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
+	// 	}
+	// }
 
-	p := &Init{
-		id:  config.ID,
-		pid: pid,
-		stdio: Stdio{
-			Stdin:    config.Stdin,
-			Stdout:   config.Stdout,
-			Stderr:   config.Stderr,
-			Terminal: config.Terminal,
-		},
-		rootfs:     rootfs,
-		bundle:     path,
-		workDir:    workDir,
-		exitStatus: 0,
-		waitBlock:  make(chan struct{}),
-		IoUID:      os.Getuid(),
-		IoGID:      os.Getuid(),
-	}
-	p.initState = &createdState{p: p}
+	// p := &Init{
+	// 	id:  config.ID,
+	// 	pid: pid,
+	// 	stdio: Stdio{
+	// 		Stdin:    config.Stdin,
+	// 		Stdout:   config.Stdout,
+	// 		Stderr:   config.Stderr,
+	// 		Terminal: config.Terminal,
+	// 	},
+	// 	rootfs:     rootfs,
+	// 	bundle:     path,
+	// 	workDir:    workDir,
+	// 	exitStatus: 0,
+	// 	waitBlock:  make(chan struct{}),
+	// 	IoUID:      os.Getuid(),
+	// 	IoGID:      os.Getuid(),
+	// }
+	// p.initState = &createdState{p: p}
 
-	// create kata container
-	p.sandbox, err = server.CreateSandbox(ctx, config.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create sandbox")
-	}
+	// // create kata container
+	// p.sandbox, err = server.CreateSandbox(ctx, config.ID)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "failed to create sandbox")
+	// }
 
-	// TODO(ZeroMagic): create with checkpoint
+	// // TODO(ZeroMagic): create with checkpoint
 
-	success = true
-	return p, nil
+	// success = true
+	// return p, nil
+	return nil, nil
 }
 
 // ID of the process
@@ -172,17 +173,19 @@ func (p *Init) Stdio() Stdio {
 
 // Status of the process
 func (p *Init) Status(ctx context.Context) (string, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	status, err := server.StatusContainer(p.sandbox.ID(), p.sandbox.ID())
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "stopped", nil
-		}
-		return "", errors.Wrap(err, "OCI runtime state failed")
-	}
-	logrus.FieldLogger(logrus.New()).Infof("container status: %v", status.State.State)
-	return string(status.State.State), nil
+	// p.mu.Lock()
+	// defer p.mu.Unlock()
+	// status, err := server.StatusContainer(p.sandbox.ID(), p.sandbox.ID())
+	// if err != nil {
+	// 	if os.IsNotExist(err) {
+	// 		return "stopped", nil
+	// 	}
+	// 	return "", errors.Wrap(err, "OCI runtime state failed")
+	// }
+	// logrus.FieldLogger(logrus.New()).Infof("container status: %v", status.State.State)
+	// return string(status.State.State), nil
+
+	return "", nil
 }
 
 // Wait for the process to exit
@@ -304,10 +307,10 @@ func (p *Init) resize(ws console.WinSize) error {
 }
 
 func (p *Init) start(ctx context.Context) error {
-	err := server.StartSandbox(ctx, p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to start sandbox")
-	}
+	// err := server.StartSandbox(ctx, p.sandbox.ID())
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to start sandbox")
+	// }
 
 	return nil
 }
@@ -315,26 +318,26 @@ func (p *Init) start(ctx context.Context) error {
 func (p *Init) delete(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Infof("init delete %v", p.id)
 
-	_, err := vc.StopSandbox(p.sandbox.ID())
-	if err != nil {
-		logrus.FieldLogger(logrus.New()).Infof("failed to stop sandbox, %v", err)
-		return errors.Wrap(err, "failed to stop sandbox")
-	}
+	// _, err := vc.StopSandbox(p.sandbox.ID())
+	// if err != nil {
+	// 	logrus.FieldLogger(logrus.New()).Infof("failed to stop sandbox, %v", err)
+	// 	return errors.Wrap(err, "failed to stop sandbox")
+	// }
 
-	_, err = vc.DeleteSandbox(p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to delete sandbox")
-	}
+	// _, err = vc.DeleteSandbox(p.sandbox.ID())
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to delete sandbox")
+	// }
 
 	return nil
 }
 
 func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 
-	err := server.KillContainer(p.sandbox.ID(), p.sandbox.ID(), syscall.Signal(signal), all)
-	if err != nil {
-		return errors.Wrap(err, "failed to kill container")
-	}
+	// err := server.KillContainer(p.sandbox.ID(), p.sandbox.ID(), syscall.Signal(signal), all)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to kill container")
+	// }
 
 	return nil
 }
@@ -347,12 +350,7 @@ func (p *Init) setExited(status int) {
 
 // Metrics return the stats of a container
 func (p *Init) Metrics(ctx context.Context) (vc.ContainerStats, error) {
-	stats, err := p.sandbox.StatsContainer(p.sandbox.ID())
-	if err != nil {
-		return vc.ContainerStats{}, errors.Wrap(err, "failed to get the stats of a container")
-	}
-
-	return stats, nil
+	return vc.ContainerStats{}, nil
 }
 
 func (p *Init) pause(ctx context.Context) error {

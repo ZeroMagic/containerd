@@ -19,21 +19,64 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
 	"syscall"
 
 	"github.com/containerd/containerd/runtime"
 	vc "github.com/kata-containers/runtime/virtcontainers"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/annotations"
 	errors "github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 // CreateContainer creates a kata-runtime container
-func CreateContainer(ctx context.Context, id string, opts runtime.CreateOpts) error {
-	return fmt.Errorf("create container not implemented")
+func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
+	envs := []vc.EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		},
+	}
+
+	cmd := vc.Cmd{
+		Args:    strings.Split("ls", " "),
+		Envs:    envs,
+		WorkDir: "/",
+		User:	"0",
+		PrimaryGroup:	"0",
+		NoNewPrivileges: true,
+	}
+
+	containerConfig := vc.ContainerConfig{
+		ID:     id,
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/default/" + id + "/rootfs",
+		Cmd:    cmd,
+		Annotations: map[string]string{
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id,
+		},
+	}
+
+	sandbox, container, err := vc.CreateContainer(sandboxID, containerConfig)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "Could not create container")
+	}
+
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"container": container,
+	}).Info("Create Container Successfully")
+
+	return sandbox.(*vc.Sandbox), container.(*vc.Container), err
 }
 
 // StartContainer starts a kata-runtime container
-func StartContainer(ctx context.Context, id string, opts runtime.CreateOpts) error {
-	return fmt.Errorf("start container not implemented")
+func StartContainer(id, sandboxID string) (*vc.Container, error) {
+	container, err := vc.StartContainer(sandboxID, id)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Could not start container")
+	}
+
+	return container.(*vc.Container), err
 }
 
 // StopContainer stops a kata-runtime container
