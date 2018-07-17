@@ -32,8 +32,6 @@ import (
 	vc "github.com/kata-containers/runtime/virtcontainers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	"github.com/containerd/containerd/runtime/kata/server"
 )
 
 // Stdio of a task
@@ -103,12 +101,12 @@ func (t *Task) Start(ctx context.Context) error {
 	var err error
 
 	if t.containerType == annotations.ContainerTypeSandbox {
-		t.sandbox, err = server.StartSandbox(t.id)
+		t.sandbox, err = StartSandbox(t.id)
 		if err != nil {
 			return errors.Wrapf(err, "task start error")
 		}
 	} else if t.containerType == annotations.ContainerTypeContainer {
-		t.container, err = server.StartContainer(t.id, t.sandboxID)
+		t.container, err = StartContainer(ctx, t.id, t.sandboxID, t)
 		if err != nil {
 			return errors.Wrapf(err, "task start error")
 		}
@@ -317,6 +315,12 @@ func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
 		return errors.Wrap(err, "task kill error")
 	}
 
+	_, err = vc.StopContainer(t.sandboxID, t.id)
+	if err != nil {
+		errors.Wrap(err, "failed to stop container")
+		return err
+	}
+
 	return nil
 }
 
@@ -348,13 +352,6 @@ func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
 	}
 
 	t.exitCode = uint32(exitCode)
-
-	// // after exiting process, the container will be stopped.
-	// _, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
-	// if err != nil {
-	// 	logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
-	// 	return err
-	// }
 	
 	return &runtime.Exit{
 		Pid:       t.pid,

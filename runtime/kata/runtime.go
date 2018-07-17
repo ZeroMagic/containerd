@@ -43,7 +43,6 @@ import (
 	errors "github.com/pkg/errors"
 
 	"github.com/containerd/containerd/runtime/kata/proc"
-	"github.com/containerd/containerd/runtime/kata/server"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	vc "github.com/kata-containers/runtime/virtcontainers"
@@ -191,12 +190,12 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	// 7. create sandbox or container
 	// TODO: need to add config
 	if containerType == annotations.ContainerTypeSandbox {
-		t.sandbox, err = server.CreateSandbox(id)
+		t.sandbox, err = CreateSandbox(id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "create task error")
 		}
 	} else if containerType == annotations.ContainerTypeContainer {
-		t.sandbox, t.container, err = server.CreateContainer(id, sandboxID)
+		t.sandbox, t.container, err = CreateContainer(id, sandboxID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "create task error")
 		}

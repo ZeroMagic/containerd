@@ -14,21 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package server
+package kata
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/containerd/containerd/runtime"
+	"github.com/containerd/fifo"
 	vc "github.com/kata-containers/runtime/virtcontainers"
 	"github.com/kata-containers/runtime/virtcontainers/pkg/annotations"
 	errors "github.com/pkg/errors"
 
 	"github.com/sirupsen/logrus"
 )
+
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		buffer := make([]byte, 32<<10)
+		return &buffer
+	},
+}
 
 // CreateContainer creates a kata-runtime container
 func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
@@ -70,11 +80,104 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 }
 
 // StartContainer starts a kata-runtime container
-func StartContainer(id, sandboxID string) (*vc.Container, error) {
+func StartContainer(ctx context.Context, id, sandboxID string, t *Task) (*vc.Container, error) {
 	container, err := vc.StartContainer(sandboxID, id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Could not start container")
 	}
+
+	stdin, stdout, stderr, err := t.sandbox.IOStream(sandboxID, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get a container's stdio streams from kata")
+	}
+	t.stdin = stdin
+	t.stdout = stdout
+	t.stderr = stderr
+
+	// create local stdio
+	var (
+		localStdout io.WriteCloser//, localStderr io.WriteCloser
+		localStdin           io.ReadCloser
+		wg               sync.WaitGroup
+	)
+
+	if stdin != nil {
+		localStdin, err = fifo.OpenFifo(ctx, t.stdio.Stdin, syscall.O_RDONLY, 0)
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("open local stdin: %s", err)
+		}
+		wg.Add(1)
+	}
+
+	if stdout != nil {
+		localStdout, err = fifo.OpenFifo(ctx, t.stdio.Stdout, syscall.O_WRONLY, 0)
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("open local stdout: %s", err)
+		}
+		wg.Add(1)
+	}
+
+	// if stderr != nil {
+	// 	localStderr, err = fifo.OpenFifo(ctx, config.Stderr, syscall.O_WRONLY, 0)
+	// 	if err != nil {
+	// 		logrus.FieldLogger(logrus.New()).Errorf("open local stderr: %s", err)
+	// 	}
+	// 	wg.Add(1)
+	// }
+
+	// Connect stdin of container.
+	go func() {
+		if stdin == nil {
+			return
+		}
+		logrus.FieldLogger(logrus.New()).Info("stdin: begin")
+		buf := bufPool.Get().(*[]byte)
+		defer bufPool.Put(buf)
+		_, err = io.CopyBuffer(stdin, localStdin, *buf)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("stdin copy: %s", err)
+		}
+		
+		logrus.FieldLogger(logrus.New()).Info("stdin: end")
+		wg.Done()
+	}()
+
+	// stdout/stderr
+	attachStream := func(name string, stream io.Writer, streamPipe io.Reader) {
+		if stream == nil {
+			return
+		}
+
+		logrus.FieldLogger(logrus.New()).Infof("%s: begin", name)
+		buf := bufPool.Get().(*[]byte)
+		defer bufPool.Put(buf)
+
+		_, err := io.CopyBuffer(stream, streamPipe, *buf)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.FieldLogger(logrus.New()).Errorf("%s copy: %v", name, err)
+		}
+		
+		if localStdin != nil {
+			localStdin.Close()
+		}
+
+		if closer, ok := stream.(io.Closer); ok {
+			closer.Close()
+		}
+		logrus.FieldLogger(logrus.New()).Infof("%s: end", name)
+		wg.Done()
+	}
+
+	go attachStream("stdout", localStdout, stdout)
+	// go attachStream("stderr", localStderr, stderr)
+
+	wg.Wait()
 
 	return container.(*vc.Container), err
 }
