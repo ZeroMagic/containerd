@@ -29,7 +29,7 @@ import (
 )
 
 // CreateSandbox creates a kata-runtime sandbox
-func CreateSandbox(id string, ) (*vc.Sandbox, error) {
+func CreateSandbox(id string) (*vc.Sandbox, error) {
 	// Sets the hypervisor configuration.
 	hypervisorConfig := vc.HypervisorConfig{
 		KernelParams: []vc.Param{

@@ -645,6 +645,7 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		}
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container attachDevices start #####")
 	// Attach devices
 	if err = c.attachDevices(); err != nil {
 		return
@@ -654,6 +655,7 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		return
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container getSystemMountInfo start #####")
 	// Deduce additional system mount info that should be handled by the agent
 	// inside the VM
 	c.getSystemMountInfo()
@@ -662,11 +664,13 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		return
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container agent.createContainer start #####")
 	process, err := sandbox.agent.createContainer(c.sandbox, c)
 	if err != nil {
 		return c, err
 	}
 	c.process = *process
+	logrus.FieldLogger(logrus.New()).Info("##### container agent.createContainer end #####")
 
 	// If this is a sandbox container, store the pid for sandbox
 	ann := c.GetAnnotations()
@@ -674,6 +678,7 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		sandbox.setSandboxPid(c.process.Pid)
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container storeProcess end #####")
 	// Store the container process returned by the agent.
 	if err = c.storeProcess(); err != nil {
 		return

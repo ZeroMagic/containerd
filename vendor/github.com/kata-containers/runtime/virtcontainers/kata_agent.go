@@ -838,6 +838,7 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		SandboxPidns: sharedPidNs,
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container agent sendReq start #####")
 	if _, err = k.sendReq(req); err != nil {
 		return nil, err
 	}
@@ -851,6 +852,7 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		},
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container agent shim start #####")
 	return prepareAndStartShim(sandbox, k.shim, c.id, req.ExecId,
 		k.state.URL, c.config.Cmd, createNSList, enterNSList)
 }
