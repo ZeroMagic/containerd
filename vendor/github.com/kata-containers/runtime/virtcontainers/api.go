@@ -307,10 +307,12 @@ func CreateContainer(sandboxID string, containerConfig ContainerConfig) (VCSandb
 		return nil, nil, err
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container create start #####")
 	c, err := s.CreateContainer(containerConfig)
 	if err != nil {
 		return nil, nil, err
 	}
+	logrus.FieldLogger(logrus.New()).Info("##### container create end #####")
 
 	return s, c, nil
 }

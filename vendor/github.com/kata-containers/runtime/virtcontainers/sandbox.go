@@ -970,16 +970,19 @@ func (s *Sandbox) newContainers() error {
 // CreateContainer creates a new container in the sandbox
 func (s *Sandbox) CreateContainer(contConfig ContainerConfig) (VCContainer, error) {
 	// Create the container.
+	logrus.FieldLogger(logrus.New()).Info("##### container sandbox create start #####")
 	c, err := createContainer(s, contConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container sandbox add start #####")
 	// Add the container to the containers list in the sandbox.
 	if err := s.addContainer(c); err != nil {
 		return nil, err
 	}
 
+	logrus.FieldLogger(logrus.New()).Info("##### container sandbox store start #####")
 	// Store it.
 	err = c.storeContainer()
 	if err != nil {
