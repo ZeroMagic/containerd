@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 	"sync"
 	"syscall"
@@ -43,21 +44,57 @@ var bufPool = sync.Pool{
 
 // CreateContainer creates a kata-runtime container
 func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
-	envs := []vc.EnvVar{
-		{
-			Var:   "PATH",
-			Value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		},
-	}
+	// envs := []vc.EnvVar{
+	// 	{
+	// 		Var:   "PATH",
+	// 		Value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	// 	},
+	// }
 
-	cmd := vc.Cmd{
-		Args:    strings.Split("ls", " "),
-		Envs:    envs,
-		WorkDir: "/",
-		User:	"0",
-		PrimaryGroup:	"0",
-		NoNewPrivileges: true,
+	// cmd := vc.Cmd{
+	// 	Args:    strings.Split("/bin/sh", " "),
+	// 	Envs:    envs,
+	// 	WorkDir: "/",
+	// 	Capabilities: vc.LinuxCapabilities{
+	// 		Bounding: []string{
+	// 			"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+	// 			"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+	// 			"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+	// 		},
+	// 		Effective: []string{
+	// 			"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+	// 			"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+	// 			"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+	// 		},
+	// 		Inheritable: []string{
+	// 			"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+	// 			"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+	// 			"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+	// 		},
+	// 		Permitted: []string{
+	// 			"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+	// 			"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+	// 			"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+	// 		},
+	// 	},
+	// 	User:	"0",
+	// 	PrimaryGroup:	"0",
+	// 	NoNewPrivileges: true,
+	// }
+
+	criHosts := "/var/lib/containerd/io.containerd.grpc.v1.cri/sandboxes/"+sandboxID+"/hosts"
+	hosts := "/run/kata-containers/shared/sandboxes/"+sandboxID+"/"+id+"-hosts"
+	criResolv := "/var/lib/containerd/io.containerd.grpc.v1.cri/sandboxes/"+sandboxID+"/resolv.conf"
+	resolv := "/run/kata-containers/shared/sandboxes/"+sandboxID+"/"+id+"-resolv.conf"
+
+	command := exec.Command("cp", criHosts, hosts)
+	if err := command.Start(); err != nil {
+        fmt.Print(err)
 	}
+	command = exec.Command("cp", criResolv, resolv)
+	if err := command.Start(); err != nil {
+        fmt.Print(err)
+    }
 
 	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
 	configJ, err := ioutil.ReadFile(configFile)
@@ -70,16 +107,34 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 	str = strings.Replace(str, "inheritable", "Inheritable", -1)
 	str = strings.Replace(str, "permitted", "Permitted", -1)
 	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+	str = strings.Replace(str, criHosts, hosts, -1)
+	str = strings.Replace(str, criResolv, resolv, -1)
 
 	// TODO: namespace would be solved
 	containerConfig := vc.ContainerConfig{
 		ID:     id,
-		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
-		Cmd:    cmd,
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/rootfs",
+		// Cmd:    cmd,
 		Annotations: map[string]string{
 			annotations.ConfigJSONKey:	str,
 			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
 			annotations.ContainerTypeKey:	 string(vc.PodContainer),
+		},
+		Mounts: 	[]vc.Mount{
+			{
+				Source:      hosts,
+				Destination: "/etc/hosts",
+				Type:        "bind",
+				Options:     []string{"rbind", "rprivate", "rw"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      resolv,
+				Destination: "/etc/resolv.conf",
+				Type:        "bind",
+				Options:     []string{"rbind", "rprivate", "rw"},
+				ReadOnly:	false,
+			},
 		},
 	}
 
