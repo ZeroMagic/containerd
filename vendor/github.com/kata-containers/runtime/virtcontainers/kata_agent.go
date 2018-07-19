@@ -838,6 +838,13 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		SandboxPidns: sharedPidNs,
 	}
 
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"Storages":  	ctrStorages,
+		"Devices": 		ctrDevices,
+		"OCI":  		grpcSpec,
+		"SandboxPidns": 		sharedPidNs,
+	}).Info("##### container agent sendReq Info #####")
+
 	if _, err = k.sendReq(req); err != nil {
 		return nil, err
 	}
