@@ -31,11 +31,11 @@
 			"revisionTime": "2018-06-05T08:00:09Z"
 		},
 		{
-			"checksumSHA1": "fPQgLSbZ2XlX9YanB/976Q7BZ9g=",
+			"checksumSHA1": "jWnTTdao7EHjsWuA+OLOMSruAwY=",
 			"origin": "github.com/kata-containers/runtime/vendor/github.com/intel/govmm/qemu",
 			"path": "github.com/intel/govmm/qemu",
-			"revision": "2f7187ae3f12039384566be4f9c6ebe1856cb771",
-			"revisionTime": "2018-06-05T08:00:09Z"
+			"revision": "e0010619fcebbad28be29ade111257d477ecbad3",
+			"revisionTime": "2018-07-18T16:22:36Z"
 		},
 		{
 			"checksumSHA1": "s0EBLgmirugYuk1a+tRSa8YTiQM=",
