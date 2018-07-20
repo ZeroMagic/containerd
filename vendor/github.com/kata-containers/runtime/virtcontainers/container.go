@@ -993,7 +993,15 @@ func (c *Container) resume() error {
 }
 
 func (c *Container) hotplugDrive() error {
+	c.Logger().WithFields(logrus.Fields{
+		"rootFS": c.rootFs,
+	}).Info("##### container getDeviceForPath start #####")
+
 	dev, err := getDeviceForPath(c.rootFs)
+
+	c.Logger().WithFields(logrus.Fields{
+		"rootFS": c.rootFs,
+	}).Info("##### container getDeviceForPath start #####")
 
 	if err == errMountPointNotFound {
 		return nil
