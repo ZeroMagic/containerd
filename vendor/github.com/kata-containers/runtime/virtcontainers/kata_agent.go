@@ -835,7 +835,7 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		Storages:     ctrStorages,
 		Devices:      ctrDevices,
 		OCI:          grpcSpec,
-		SandboxPidns: sharedPidNs,
+		SandboxPidns: true,
 	}
 
 	logrus.FieldLogger(logrus.New()).Info("##### container agent sendReq start #####")
