@@ -1260,6 +1260,11 @@ func (k *kataAgent) sendReq(request interface{}) (interface{}, error) {
 	}
 
 	msgName := proto.MessageName(request.(proto.Message))
+
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"msgName":  	msgName,
+	}).Info("##### container agent sendReq msgName #####")
+
 	handler := k.reqHandlers[msgName]
 	if msgName == "" || handler == nil {
 		return nil, errors.New("Invalid request type")
