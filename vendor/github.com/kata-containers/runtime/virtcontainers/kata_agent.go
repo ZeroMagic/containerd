@@ -52,6 +52,7 @@ var (
 	sharedDir9pOptions    = []string{"trans=virtio,version=9p2000.L", "nodev"}
 	shmDir                = "shm"
 	kataEphemeralDevType  = "ephemeral"
+	ephemeralPath         = filepath.Join(kataGuestSandboxDir, kataEphemeralDevType)
 )
 
 // KataAgentConfig is a structure storing information needed
@@ -419,9 +420,13 @@ func (k *kataAgent) generateInterfacesAndRoutes(networkNS NetworkNamespace) ([]*
 	return ifaces, routes, nil
 }
 
-func (k *kataAgent) startSandbox(sandbox *Sandbox) error {
+func (k *kataAgent) startProxy(sandbox *Sandbox) error {
 	if k.proxy == nil {
 		return errorMissingProxy
+	}
+
+	if k.proxy.consoleWatched() {
+		return nil
 	}
 
 	// Get agent socket path to provide it to the proxy.
@@ -453,6 +458,15 @@ func (k *kataAgent) startSandbox(sandbox *Sandbox) error {
 		"proxy-pid":  pid,
 		"proxy-url":  uri,
 	}).Info("proxy started")
+
+	return nil
+}
+
+func (k *kataAgent) startSandbox(sandbox *Sandbox) error {
+	err := k.startProxy(sandbox)
+	if err != nil {
+		return err
+	}
 
 	hostname := sandbox.config.Hostname
 	if len(hostname) > maxHostnameLen {
@@ -790,6 +804,9 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		return nil, err
 	}
 
+	epheStorages := k.handleEphemeralStorage(ociSpec.Mounts)
+	ctrStorages = append(ctrStorages, epheStorages...)
+
 	// We replace all OCI mount sources that match our container mount
 	// with the right source path (The guest one).
 	if err = k.replaceOCIMountSource(ociSpec, newMounts); err != nil {
@@ -835,16 +852,9 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		Storages:     ctrStorages,
 		Devices:      ctrDevices,
 		OCI:          grpcSpec,
-		SandboxPidns: true,
+		SandboxPidns: sharedPidNs,
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container agent sendReq start #####")
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"Storages":  	ctrStorages,
-		"Devices": 		ctrDevices,
-		"OCI":  		grpcSpec,
-		"SandboxPidns": 		sharedPidNs,
-	}).Info("##### container agent sendReq Info #####")
 	if _, err = k.sendReq(req); err != nil {
 		return nil, err
 	}
@@ -858,9 +868,31 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		},
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container agent shim start #####")
 	return prepareAndStartShim(sandbox, k.shim, c.id, req.ExecId,
 		k.state.URL, c.config.Cmd, createNSList, enterNSList)
+}
+
+// handleEphemeralStorage handles ephemeral storages by
+// creating a Storage from corresponding source of the mount point
+func (k *kataAgent) handleEphemeralStorage(mounts []specs.Mount) []*grpc.Storage {
+	var epheStorages []*grpc.Storage
+	for idx, mnt := range mounts {
+		if mnt.Type == kataEphemeralDevType {
+			// Set the mount source path to a path that resides inside the VM
+			mounts[idx].Source = filepath.Join(ephemeralPath, filepath.Base(mnt.Source))
+
+			// Create a storage struct so that kata agent is able to create
+			// tmpfs backed volume inside the VM
+			epheStorage := &grpc.Storage{
+				Driver:     kataEphemeralDevType,
+				Source:     "tmpfs",
+				Fstype:     "tmpfs",
+				MountPoint: mounts[idx].Source,
+			}
+			epheStorages = append(epheStorages, epheStorage)
+		}
+	}
+	return epheStorages
 }
 
 // handleBlockVolumes handles volumes that are block devices files
@@ -1260,15 +1292,12 @@ func (k *kataAgent) sendReq(request interface{}) (interface{}, error) {
 	}
 
 	msgName := proto.MessageName(request.(proto.Message))
-
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"msgName":  	msgName,
-	}).Info("##### container agent sendReq msgName #####")
-
 	handler := k.reqHandlers[msgName]
 	if msgName == "" || handler == nil {
 		return nil, errors.New("Invalid request type")
 	}
+	message := request.(proto.Message)
+	k.Logger().WithField("name", msgName).WithField("req", message.String()).Debug("sending request")
 
 	return handler(context.Background(), request)
 }

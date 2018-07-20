@@ -17,6 +17,11 @@ import (
 type kataProxy struct {
 }
 
+// The kata proxy doesn't need to watch the vm console, thus return false always.
+func (p *kataProxy) consoleWatched() bool {
+	return false
+}
+
 // start is kataProxy start implementation for proxy interface.
 func (p *kataProxy) start(sandbox *Sandbox, params proxyParams) (int, string, error) {
 	if sandbox.agent == nil {
@@ -38,7 +43,13 @@ func (p *kataProxy) start(sandbox *Sandbox, params proxyParams) (int, string, er
 		return -1, "", err
 	}
 
-	args := []string{config.Path, "-listen-socket", proxyURL, "-mux-socket", params.agentURL}
+	args := []string{
+		config.Path,
+		"-listen-socket", proxyURL,
+		"-mux-socket", params.agentURL,
+		"-sandbox", sandbox.ID(),
+	}
+
 	if config.Debug {
 		args = append(args, "-log", "debug")
 		console, err := sandbox.hypervisor.getSandboxConsole(sandbox.id)

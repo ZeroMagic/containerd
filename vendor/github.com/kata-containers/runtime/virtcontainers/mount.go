@@ -16,7 +16,6 @@ import (
 	"syscall"
 
 	"github.com/kata-containers/runtime/virtcontainers/device/drivers"
-	"github.com/sirupsen/logrus"
 )
 
 // DefaultShmSize is the default shm size to be used in case host
@@ -106,16 +105,10 @@ func getDeviceForPath(path string) (device, error) {
 	major := major(stat.Dev)
 	minor := minor(stat.Dev)
 
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"path": path,
-	}).Info("##### getDeviceForPath before #####")
 	path, err = filepath.Abs(path)
 	if err != nil {
 		return device{}, err
 	}
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"path": path,
-	}).Info("##### getDeviceForPath after #####")
 
 	mountPoint := path
 
@@ -128,32 +121,28 @@ func getDeviceForPath(path string) (device, error) {
 	}
 
 	// We get the mount point by recursively peforming stat on the path
-	// // The point where the device changes indicates the mountpoint
-	// for {
-	// 	if mountPoint == "/" {
-	// 		return device{}, errMountPointNotFound
-	// 	}
+	// The point where the device changes indicates the mountpoint
+	for {
+		if mountPoint == "/" {
+			return device{}, errMountPointNotFound
+		}
 
-	// 	parentStat := syscall.Stat_t{}
-	// 	parentDir := filepath.Dir(path)
+		parentStat := syscall.Stat_t{}
+		parentDir := filepath.Dir(path)
 
-	// 	err := syscall.Lstat(parentDir, &parentStat)
-	// 	if err != nil {
-	// 		return device{}, err
-	// 	}
+		err := syscall.Lstat(parentDir, &parentStat)
+		if err != nil {
+			return device{}, err
+		}
 
-	// 	if parentStat.Dev != stat.Dev {
-	// 		break
-	// 	}
+		if parentStat.Dev != stat.Dev {
+			break
+		}
 
-	// 	mountPoint = parentDir
-	// 	stat = parentStat
-	// 	path = parentDir
-
-	// 	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-	// 		"mountPoint": mountPoint,
-	// 	}).Info("##### getDeviceForPath for #####")
-	// }
+		mountPoint = parentDir
+		stat = parentStat
+		path = parentDir
+	}
 
 	dev := device{
 		major:      major,

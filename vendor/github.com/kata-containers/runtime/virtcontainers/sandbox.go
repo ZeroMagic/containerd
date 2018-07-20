@@ -352,6 +352,17 @@ type SandboxConfig struct {
 	SharePidNs bool
 }
 
+func (s *Sandbox) startProxy() error {
+
+	// If the proxy is KataBuiltInProxyType type, it needs to restart the proxy
+	// to watch the guest console if it hadn't been watched.
+	if s.agent == nil {
+		return fmt.Errorf("sandbox %s missed agent pointer", s.ID())
+	}
+
+	return s.agent.startProxy(s)
+}
+
 // valid checks that the sandbox configuration is valid.
 func (sandboxConfig *SandboxConfig) valid() bool {
 	if sandboxConfig.ID == "" {
@@ -970,19 +981,16 @@ func (s *Sandbox) newContainers() error {
 // CreateContainer creates a new container in the sandbox
 func (s *Sandbox) CreateContainer(contConfig ContainerConfig) (VCContainer, error) {
 	// Create the container.
-	logrus.FieldLogger(logrus.New()).Info("##### container sandbox create start #####")
 	c, err := createContainer(s, contConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container sandbox add start #####")
 	// Add the container to the containers list in the sandbox.
 	if err := s.addContainer(c); err != nil {
 		return nil, err
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container sandbox store start #####")
 	// Store it.
 	err = c.storeContainer()
 	if err != nil {
@@ -1193,6 +1201,14 @@ func (s *Sandbox) stop() error {
 func (s *Sandbox) Pause() error {
 	if err := s.hypervisor.pauseSandbox(); err != nil {
 		return err
+	}
+
+	//After the sandbox is paused, it's needed to stop its monitor,
+	//Otherwise, its monitors will receive timeout errors if it is
+	//paused for a long time, thus its monitor will not tell it's a
+	//crash caused timeout or just a paused timeout.
+	if s.monitor != nil {
+		s.monitor.stop()
 	}
 
 	return s.pauseSetStates()

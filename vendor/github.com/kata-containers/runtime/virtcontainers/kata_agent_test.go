@@ -28,7 +28,7 @@ import (
 	"github.com/kata-containers/runtime/virtcontainers/pkg/mock"
 )
 
-var (
+const (
 	testKataProxyURLTempl  = "unix://%s/kata-proxy-test.sock"
 	testBlockDeviceCtrPath = "testBlockDeviceCtrPath"
 	testPCIAddr            = "04/02"
@@ -367,6 +367,25 @@ func TestGenerateInterfacesAndRoutes(t *testing.T) {
 	assert.True(t, reflect.DeepEqual(resRoutes, expectedRoutes),
 		"Routes returned didn't match: got %+v, expecting %+v", resRoutes, expectedRoutes)
 
+}
+
+func TestHandleEphemeralStorage(t *testing.T) {
+	k := kataAgent{}
+	var ociMounts []specs.Mount
+	mountSource := "/tmp/mountPoint"
+
+	mount := specs.Mount{
+		Type:   kataEphemeralDevType,
+		Source: mountSource,
+	}
+
+	ociMounts = append(ociMounts, mount)
+	epheStorages := k.handleEphemeralStorage(ociMounts)
+
+	epheMountPoint := epheStorages[0].GetMountPoint()
+	expected := filepath.Join(ephemeralPath, filepath.Base(mountSource))
+	assert.Equal(t, epheMountPoint, expected,
+		"Ephemeral mount point didn't match: got %s, expecting %s", epheMountPoint, expected)
 }
 
 func TestAppendDevicesEmptyContainerDeviceList(t *testing.T) {

@@ -620,18 +620,11 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		return nil, errNeedSandbox
 	}
 
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"RootFS": contConfig.RootFs,
-	}).Info("##### container newContainer start #####")
 	c, err = newContainer(sandbox, contConfig)
 	if err != nil {
 		return
 	}
-	c.Logger().WithFields(logrus.Fields{
-		"rootFS": c.rootFs,
-	}).Info("##### container newContainer end #####")
 
-	logrus.FieldLogger(logrus.New()).Info("##### container createContainersDirs start #####")
 	if err = c.createContainersDirs(); err != nil {
 		return
 	}
@@ -650,7 +643,6 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		}
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container attachDevices start #####")
 	// Attach devices
 	if err = c.attachDevices(); err != nil {
 		return
@@ -660,7 +652,6 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		return
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container getSystemMountInfo start #####")
 	// Deduce additional system mount info that should be handled by the agent
 	// inside the VM
 	c.getSystemMountInfo()
@@ -669,13 +660,11 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		return
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container agent.createContainer start #####")
 	process, err := sandbox.agent.createContainer(c.sandbox, c)
 	if err != nil {
 		return c, err
 	}
 	c.process = *process
-	logrus.FieldLogger(logrus.New()).Info("##### container agent.createContainer end #####")
 
 	// If this is a sandbox container, store the pid for sandbox
 	ann := c.GetAnnotations()
@@ -683,7 +672,6 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		sandbox.setSandboxPid(c.process.Pid)
 	}
 
-	logrus.FieldLogger(logrus.New()).Info("##### container storeProcess end #####")
 	// Store the container process returned by the agent.
 	if err = c.storeProcess(); err != nil {
 		return
@@ -692,8 +680,6 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 	if err = c.setContainerState(StateReady); err != nil {
 		return
 	}
-
-	logrus.FieldLogger(logrus.New()).Info("##### container createContainer end #####")
 
 	return c, nil
 }
@@ -993,15 +979,7 @@ func (c *Container) resume() error {
 }
 
 func (c *Container) hotplugDrive() error {
-	c.Logger().WithFields(logrus.Fields{
-		"rootFS": c.rootFs,
-	}).Info("##### container getDeviceForPath start #####")
-
 	dev, err := getDeviceForPath(c.rootFs)
-
-	c.Logger().WithFields(logrus.Fields{
-		"rootFS": c.rootFs,
-	}).Info("##### container getDeviceForPath start #####")
 
 	if err == errMountPointNotFound {
 		return nil
