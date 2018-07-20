@@ -128,32 +128,32 @@ func getDeviceForPath(path string) (device, error) {
 	}
 
 	// We get the mount point by recursively peforming stat on the path
-	// The point where the device changes indicates the mountpoint
-	for {
-		if mountPoint == "/" {
-			return device{}, errMountPointNotFound
-		}
+	// // The point where the device changes indicates the mountpoint
+	// for {
+	// 	if mountPoint == "/" {
+	// 		return device{}, errMountPointNotFound
+	// 	}
 
-		parentStat := syscall.Stat_t{}
-		parentDir := filepath.Dir(path)
+	// 	parentStat := syscall.Stat_t{}
+	// 	parentDir := filepath.Dir(path)
 
-		err := syscall.Lstat(parentDir, &parentStat)
-		if err != nil {
-			return device{}, err
-		}
+	// 	err := syscall.Lstat(parentDir, &parentStat)
+	// 	if err != nil {
+	// 		return device{}, err
+	// 	}
 
-		if parentStat.Dev != stat.Dev {
-			break
-		}
+	// 	if parentStat.Dev != stat.Dev {
+	// 		break
+	// 	}
 
-		mountPoint = parentDir
-		stat = parentStat
-		path = parentDir
+	// 	mountPoint = parentDir
+	// 	stat = parentStat
+	// 	path = parentDir
 
-		logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-			"mountPoint": mountPoint,
-		}).Info("##### getDeviceForPath for #####")
-	}
+	// 	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+	// 		"mountPoint": mountPoint,
+	// 	}).Info("##### getDeviceForPath for #####")
+	// }
 
 	dev := device{
 		major:      major,
