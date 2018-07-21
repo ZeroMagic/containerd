@@ -631,6 +631,10 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		"rootFS": c.rootFs,
 	}).Info("##### container newContainer end #####")
 
+	c.Logger().WithFields(logrus.Fields{
+		"contConfig":  	contConfig,
+	}).Info("##### container CreateContainer #####")
+
 	logrus.FieldLogger(logrus.New()).Info("##### container createContainersDirs start #####")
 	if err = c.createContainersDirs(); err != nil {
 		return

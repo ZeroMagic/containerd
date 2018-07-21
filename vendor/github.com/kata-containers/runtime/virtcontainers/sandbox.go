@@ -673,10 +673,6 @@ func createSandbox(sandboxConfig SandboxConfig) (*Sandbox, error) {
 		return nil, err
 	}
 
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"sandboxConfig":  	sandboxConfig,
-	}).Info("##### sandbox createSandbox #####")
-
 	s, err := newSandbox(sandboxConfig)
 	if err != nil {
 		return nil, err
@@ -742,6 +738,10 @@ func newSandbox(sandboxConfig SandboxConfig) (*Sandbox, error) {
 		shmSize:         sandboxConfig.ShmSize,
 		sharePidNs:      sandboxConfig.SharePidNs,
 	}
+
+	s.Logger().WithFields(logrus.Fields{
+		"sandboxConfig":  	sandboxConfig,
+	}).Info("##### sandbox createSandbox #####")
 
 	if err = globalSandboxList.addSandbox(s); err != nil {
 		return nil, err
@@ -973,9 +973,6 @@ func (s *Sandbox) newContainers() error {
 
 // CreateContainer creates a new container in the sandbox
 func (s *Sandbox) CreateContainer(contConfig ContainerConfig) (VCContainer, error) {
-	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-		"contConfig":  	contConfig,
-	}).Info("##### sandbox CreateContainer #####")
 	// Create the container.
 	logrus.FieldLogger(logrus.New()).Info("##### container sandbox create start #####")
 	c, err := createContainer(s, contConfig)
