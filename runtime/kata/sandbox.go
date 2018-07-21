@@ -19,6 +19,8 @@ package kata
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"strings"
 
 	"github.com/containerd/containerd/runtime"
 	vc "github.com/kata-containers/runtime/virtcontainers"
@@ -30,6 +32,19 @@ import (
 
 // CreateSandbox creates a kata-runtime sandbox
 func CreateSandbox(id string) (*vc.Sandbox, error) {
+
+	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
+	configJ, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		fmt.Print(err)
+	}
+	str := string(configJ)
+	str = strings.Replace(str, "bounding", "Bounding", -1)
+	str = strings.Replace(str, "effective", "Effective", -1)
+	str = strings.Replace(str, "inheritable", "Inheritable", -1)
+	str = strings.Replace(str, "permitted", "Permitted", -1)
+	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+
 	// Sets the hypervisor configuration.
 	hypervisorConfig := vc.HypervisorConfig{
 		KernelParams: []vc.Param{
@@ -106,11 +121,13 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 
 		// TODO: namespace would be solved
 		Annotations: map[string]string{
+			annotations.ConfigJSONKey:	str,
 			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
+			annotations.ContainerTypeKey:	 string(vc.PodSandbox),
 		},
 
 		ShmSize:	uint64(67108864),
-		SharePidNs: false,
+		SharePidNs: true,
 	}
 
 	sandbox, err := vc.CreateSandbox(sandboxConfig)
