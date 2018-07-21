@@ -44,6 +44,108 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 	str = strings.Replace(str, "inheritable", "Inheritable", -1)
 	str = strings.Replace(str, "permitted", "Permitted", -1)
 	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+	str = strings.Replace(str, "/pause", "", -1)
+
+	envs := []vc.EnvVar{
+		{
+			Var:   "PATH",
+			Value: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		},
+	}
+	cmd := vc.Cmd{
+		Envs:    envs,
+		WorkDir: "/",
+		Capabilities: vc.LinuxCapabilities{
+			Bounding: []string{
+				"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+				"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+			},
+			Effective: []string{
+				"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+				"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+			},
+			Inheritable: []string{
+				"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+				"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+			},
+			Permitted: []string{
+				"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+				"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+				"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+			},
+		},
+		User:	"0",
+		PrimaryGroup:	"0",
+		NoNewPrivileges: true,
+	}
+	// Define the container command and bundle.
+	container := vc.ContainerConfig{
+		ID:     id,
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
+		Cmd:    cmd,
+		Annotations: map[string]string{
+			annotations.ConfigJSONKey:	str,
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
+			annotations.ContainerTypeKey:	string(vc.PodSandbox),
+		},
+		Mounts: 	[]vc.Mount{
+			{
+				Source:      "proc",
+				Destination: "/proc",
+				Type:        "proc",
+				Options:     nil,
+				ReadOnly:	false,
+			},
+			{
+				Source:      "tmpfs",
+				Destination: "/dev",
+				Type:        "tmpfs",
+				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      "devpts",
+				Destination: "/dev/pts",
+				Type:        "devpts",
+				Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      "shm",
+				Destination: "/dev/shm",
+				Type:        "tmpfs",
+				Options:     []string{"nosuid", "noexec", "nodev", "mode=1777", "size=65536k"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      "mqueue",
+				Destination: "/dev/mqueue",
+				Type:        "mqueue",
+				Options:     []string{"nosuid", "noexec", "nodev"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      "sysfs",
+				Destination: "/sys",
+				Type:        "sysfs",
+				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      "tmpfs",
+				Destination: "/run",
+				Type:        "tmpfs",
+				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+				ReadOnly:	false,
+			},
+		},
+	}
+
+
+
 
 	// Sets the hypervisor configuration.
 	hypervisorConfig := vc.HypervisorConfig{
@@ -118,6 +220,8 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 			NumInterfaces:		1,
 			InterworkingModel:	2,
 		},
+
+		Containers: []vc.ContainerConfig{container},
 
 		// TODO: namespace would be solved
 		Annotations: map[string]string{
