@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/cgroups"
 	"github.com/containerd/console"
 	eventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/events/exchange"
@@ -43,7 +42,12 @@ type Task struct {
 	namespace string
 	pid       uint32
 
-	cg      cgroups.Cgroup
+	containerType string
+	sandboxID     string
+
+	container	*vc.Container
+	sandbox 	*vc.Sandbox
+
 	monitor runtime.TaskMonitor
 	events  *exchange.Exchange
 

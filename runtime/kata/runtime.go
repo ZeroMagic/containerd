@@ -171,15 +171,22 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	}
 	spec := s.(*runtimespec.Spec)
 	containerType := spec.Annotations[annotations.ContainerType]
-	log.G(ctx).Infof("Runtime: ContainerType is %s\n", containerType)
+	log.G(ctx).Infof("Runtime: %s ContainerType is %s", id, containerType)
+	sandboxID := spec.Annotations[annotations.SandboxID]
 
 	// 6. new task. Init the vm, sandbox, and necessary container.
 	t, err := newTask(id, namespace, pid, r.monitor, r.events)
 	if err != nil {
 		return nil, err
 	}
+	t.containerType = containerType
+	t.sandboxID = sandboxID
+
+	// 7. create sandbox or container
 	config := &proc.InitConfig{
 		ID:       id,
+		SandboxID:	sandboxID,
+		ContainerType:	containerType,
 		Rootfs:   opts.Rootfs,
 		Terminal: opts.IO.Terminal,
 		Stdin:    opts.IO.Stdin,
@@ -192,6 +199,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	}
 	t.processList[id] = init
 
+	// 8. add the task to taskList
 	if err := r.tasks.Add(ctx, t); err != nil {
 		return nil, err
 	}
@@ -208,7 +216,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 
 	logrus.FieldLogger(logrus.New()).Info("RR--Runtime create a task Successfully")
 
-	// 8. publish create event
+	// 9. publish create event
 	r.events.Publish(ctx, runtime.TaskCreateEventTopic, &eventstypes.TaskCreate{
 		ContainerID: id,
 		Bundle:      bundle.path,

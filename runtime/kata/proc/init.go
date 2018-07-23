@@ -26,10 +26,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/fifo"
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/fifo"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 
@@ -38,6 +38,8 @@ import (
 	vc "github.com/kata-containers/runtime/virtcontainers"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/containerd/cri/pkg/annotations"
 )
 
 // InitPidFile name of the file that contains the init pid
@@ -63,6 +65,9 @@ type Init struct {
 	id     string
 	bundle string
 
+	containerType string
+	sandboxID     string
+
 	exitStatus int
 	exited     time.Time
 	pid        int
@@ -74,7 +79,8 @@ type Init struct {
 	IoUID      int
 	IoGID      int
 
-	sandbox vc.VCSandbox
+	sandbox   *vc.Sandbox
+	container *vc.Container
 }
 
 // NewInit returns a new init process
@@ -108,6 +114,8 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 	p := &Init{
 		id:  config.ID,
 		pid: pid,
+		sandboxID:	config.SandboxID,
+		containerType:	config.ContainerType,
 		stdio: Stdio{
 			Stdin:    config.Stdin,
 			Stdout:   config.Stdout,
@@ -125,9 +133,19 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 	p.initState = &createdState{p: p}
 
 	// create kata container
-	p.sandbox, err = server.CreateSandbox(ctx, config.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create sandbox")
+	
+	if p.containerType == annotations.ContainerTypeSandbox {
+		p.sandbox, err = server.CreateSandbox(config.ID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create sandbox")
+		} 
+	}else if p.containerType == annotations.ContainerTypeContainer {
+		p.sandbox, p.container, err = server.CreateContainer(p.id, p.sandboxID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create container")
+		}
+	} else {
+		return nil, errors.New(ErrContainerType)
 	}
 
 	// TODO(ZeroMagic): create with checkpoint
@@ -174,7 +192,7 @@ func (p *Init) Stdio() Stdio {
 func (p *Init) Status(ctx context.Context) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	status, err := server.StatusContainer(p.sandbox.ID(), p.sandbox.ID())
+	status, err := server.StatusContainer(p.sandboxID, p.id)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "stopped", nil
@@ -188,8 +206,7 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 // Wait for the process to exit
 func (p *Init) Wait(ctx context.Context) error {
 
-
-	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandbox.ID(), p.sandbox.ID())
+	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandboxID, p.id)
 	if err != nil {
 		return errors.Wrap(err, "failed to get a container's stdio streams from kata")
 	}
@@ -199,9 +216,9 @@ func (p *Init) Wait(ctx context.Context) error {
 
 	// create local stdio
 	var (
-		localStdout io.WriteCloser//, localStderr io.WriteCloser
-		localStdin           io.ReadCloser
-		wg               sync.WaitGroup
+		localStdout io.WriteCloser //, localStderr io.WriteCloser
+		localStdin  io.ReadCloser
+		wg          sync.WaitGroup
 	)
 
 	if stdin != nil {
@@ -243,7 +260,7 @@ func (p *Init) Wait(ctx context.Context) error {
 		if err != nil {
 			logrus.FieldLogger(logrus.New()).Errorf("stdin copy: %s", err)
 		}
-		
+
 		logrus.FieldLogger(logrus.New()).Info("stdin: end")
 		wg.Done()
 	}()
@@ -265,7 +282,7 @@ func (p *Init) Wait(ctx context.Context) error {
 		if err != nil {
 			logrus.FieldLogger(logrus.New()).Errorf("%s copy: %v", name, err)
 		}
-		
+
 		if localStdin != nil {
 			localStdin.Close()
 		}
@@ -282,20 +299,19 @@ func (p *Init) Wait(ctx context.Context) error {
 
 	wg.Wait()
 
-
-	exitCode, err := p.sandbox.WaitProcess(p.sandbox.ID(), p.sandbox.ID())
+	exitCode, err := p.sandbox.WaitProcess(p.sandboxID, p.id)
 	if err != nil {
 		return err
 	}
 	p.exitStatus = int(exitCode)
 
 	// after exiting process, the container will be stopped.
-	_, err = vc.StopContainer(p.sandbox.ID(), p.sandbox.ID())
+	_, err = vc.StopContainer(p.sandboxID, p.id)
 	if err != nil {
 		logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -304,11 +320,21 @@ func (p *Init) resize(ws console.WinSize) error {
 }
 
 func (p *Init) start(ctx context.Context) error {
-	err := server.StartSandbox(ctx, p.sandbox.ID())
-	if err != nil {
-		return errors.Wrap(err, "failed to start sandbox")
+	var err error
+	if p.containerType == annotations.ContainerTypeSandbox {
+		p.sandbox, err = server.StartSandbox(p.id)
+		if err != nil {
+			return errors.Wrap(err, "failed to start sandbox")
+		} 
+	}else if p.containerType == annotations.ContainerTypeContainer {
+		p.container, err = server.StartContainer(p.id, p.sandboxID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to start container")
+		}
+	} else {
+		return errors.New(ErrContainerType)
 	}
-
+	
 	return nil
 }
 
@@ -331,7 +357,7 @@ func (p *Init) delete(ctx context.Context) error {
 
 func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 
-	err := server.KillContainer(p.sandbox.ID(), p.sandbox.ID(), syscall.Signal(signal), all)
+	err := server.KillContainer(p.sandboxID, p.id, syscall.Signal(signal), all)
 	if err != nil {
 		return errors.Wrap(err, "failed to kill container")
 	}
@@ -399,14 +425,14 @@ func (p *Init) exec(context context.Context, id string, conf *ExecConfig) (Proce
 		NoNewPrivileges: spec.NoNewPrivileges,
 	}
 
-	_, process, err := p.sandbox.EnterContainer(p.sandbox.ID(), cmd)
+	_, process, err := p.sandbox.EnterContainer(p.id, cmd)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot enter container %s", p.sandbox.ID())
+		return nil, errors.Wrapf(err, "cannot enter container %s", p.id)
 	}
 
-	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandbox.ID(), process.Token)
+	stdin, stdout, stderr, err := p.sandbox.IOStream(p.id, process.Token)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get %s IOStream", p.sandbox.ID())
+		return nil, errors.Wrapf(err, "cannot get %s IOStream", p.id)
 	}
 
 	e := &ExecProcess{

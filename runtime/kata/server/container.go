@@ -17,33 +17,65 @@ limitations under the License.
 package server
 
 import (
-	"context"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"syscall"
 
-	"github.com/containerd/containerd/runtime"
 	vc "github.com/kata-containers/runtime/virtcontainers"
+	"github.com/kata-containers/runtime/virtcontainers/pkg/annotations"
 	errors "github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 // CreateContainer creates a kata-runtime container
-func CreateContainer(ctx context.Context, id string, opts runtime.CreateOpts) error {
-	return fmt.Errorf("create container not implemented")
+func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
+
+	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
+	configJ, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		fmt.Print(err)
+	}
+	str := string(configJ)
+	str = strings.Replace(str, "bounding", "Bounding", -1)
+	str = strings.Replace(str, "effective", "Effective", -1)
+	str = strings.Replace(str, "inheritable", "Inheritable", -1)
+	str = strings.Replace(str, "permitted", "Permitted", -1)
+	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+
+	// TODO: namespace would be solved
+	containerConfig := vc.ContainerConfig{
+		ID:     id,
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/rootfs",
+		// Cmd:    cmd,
+		Annotations: map[string]string{
+			annotations.ConfigJSONKey:	str,
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
+			annotations.ContainerTypeKey:	 string(vc.PodContainer),
+		},
+	}
+
+	sandbox, container, err := vc.CreateContainer(sandboxID, containerConfig)
+	if err != nil {
+		logrus.FieldLogger(logrus.New()).Info("Create Container Failed")
+		return nil, nil, errors.Wrapf(err, "Could not create container")
+	}
+
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"container": container,
+	}).Info("Create Container Successfully")
+
+	return sandbox.(*vc.Sandbox), container.(*vc.Container), err
 }
 
 // StartContainer starts a kata-runtime container
-func StartContainer(ctx context.Context, id string, opts runtime.CreateOpts) error {
-	return fmt.Errorf("start container not implemented")
-}
-
-// StopContainer stops a kata-runtime container
-func StopContainer(ctx context.Context, id string, opts runtime.CreateOpts) error {
-	return fmt.Errorf("stop container not implemented")
-}
-
-// DeleteContainer deletes a kata-runtime container
-func DeleteContainer(ctx context.Context, id string, opts runtime.CreateOpts) error {
-	return fmt.Errorf("delete container not implemented")
+func StartContainer(id, sandboxID string) (*vc.Container, error) {
+	container, err := vc.StartContainer(sandboxID, id)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Could not start container")
+	}
+	return container.(*vc.Container), err
 }
 
 // KillContainer kills one or more kata-runtime containers

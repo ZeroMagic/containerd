@@ -95,7 +95,7 @@ func (e *ExecProcess) Status(ctx context.Context) (string, error) {
 	return s, nil
 }
 
-func (e *ExecProcess) Wait(ctx context.Context) error{
+func (e *ExecProcess) Wait(ctx context.Context) error {
 	<-e.waitBlock
 	return nil
 }

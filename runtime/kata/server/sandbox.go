@@ -31,7 +31,7 @@ import (
 )
 
 // CreateSandbox creates a kata-runtime sandbox
-func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
+func CreateSandbox(id string) (*vc.Sandbox, error) {
 	envs := []vc.EnvVar{
 		{
 			Var:   "PATH",
@@ -43,7 +43,7 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 		},
 	}
 
-	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id+"/config.json"
+	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
 	configJ, err := ioutil.ReadFile(configFile)
     if err != nil {
         fmt.Print(err)
@@ -56,7 +56,7 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
 
 	cmd := vc.Cmd{
-		Args:    strings.Split("sh", " "),
+		// Args:    strings.Split("sh", " "),
 		Envs:    envs,
 		WorkDir: "/",
 		Capabilities: vc.LinuxCapabilities{
@@ -89,12 +89,12 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 	// Define the container command and bundle.
 	container := vc.ContainerConfig{
 		ID:     id,
-		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/default/" + id + "/rootfs",
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
 		Cmd:    cmd,
 		Annotations: map[string]string{
 			annotations.ConfigJSONKey:	str,
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id,
-			annotations.ContainerTypeKey:	"pod_sandbox",
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
+			annotations.ContainerTypeKey:	string(vc.PodSandbox),
 		},
 		Mounts: 	[]vc.Mount{
 			{
@@ -226,8 +226,7 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 		Containers: []vc.ContainerConfig{container},
 
 		Annotations: map[string]string{
-			annotations.ConfigJSONKey:	str,
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/default/"+id,
+			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
 		},
 
 		ShmSize:	uint64(67108864),
@@ -243,17 +242,17 @@ func CreateSandbox(ctx context.Context, id string) (vc.VCSandbox, error) {
 		"sandbox": sandbox,
 	}).Info("Run Sandbox Successfully")
 
-	return sandbox, err
+	return sandbox.(*vc.Sandbox), err
 }
 
 // StartSandbox starts a kata-runtime sandbox
-func StartSandbox(ctx context.Context, id string) error {
-	_, err := vc.StartSandbox(id)
+func StartSandbox(id string) (*vc.Sandbox, error) {
+	sandbox, err := vc.StartSandbox(id)
 	if err != nil {
-		return errors.Wrapf(err, "Could not start sandbox")
+		return nil, errors.Wrapf(err, "Could not start sandbox")
 	}
 
-	return err
+	return sandbox.(*vc.Sandbox), err
 }
 
 // StopSandbox stops a kata-runtime sandbox
