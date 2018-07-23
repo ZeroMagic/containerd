@@ -19,8 +19,8 @@ package kata
 import (
 	"context"
 	"fmt"
-	"os"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -184,14 +184,14 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 
 	// 7. create sandbox or container
 	config := &proc.InitConfig{
-		ID:       id,
-		SandboxID:	sandboxID,
-		ContainerType:	containerType,
-		Rootfs:   opts.Rootfs,
-		Terminal: opts.IO.Terminal,
-		Stdin:    opts.IO.Stdin,
-		Stdout:   opts.IO.Stdout,
-		Stderr:   opts.IO.Stderr,
+		ID:            id,
+		SandboxID:     sandboxID,
+		ContainerType: containerType,
+		Rootfs:        opts.Rootfs,
+		Terminal:      opts.IO.Terminal,
+		Stdin:         opts.IO.Stdin,
+		Stdout:        opts.IO.Stdout,
+		Stderr:        opts.IO.Stderr,
 	}
 	init, err := proc.NewInit(ctx, bundle.path, bundle.workDir, namespace, int(pid), config)
 	if err != nil {
@@ -270,7 +270,6 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		}).Warnf("unmount task rootfs")
 	}
 
-
 	logrus.FieldLogger(logrus.New()).Infof("RR--Runtime Delete task %v", taskID)
 	// delete process
 	p := t.(*Task).GetProcess(taskID)
@@ -304,9 +303,9 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 	})
 
 	return &runtime.Exit{
-		Pid:        uint32(p.Pid()),
-		Status: 	uint32(p.ExitStatus()),
-		Timestamp:	p.ExitedAt(),
+		Pid:       uint32(p.Pid()),
+		Status:    uint32(p.ExitStatus()),
+		Timestamp: p.ExitedAt(),
 	}, nil
 }
 
@@ -353,7 +352,7 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 		pidStr := string(pidByte)
 		pid64, err := strconv.ParseInt(pidStr, 10, 32)
 		pid := uint32(pid64)
-		
+
 		ctx = namespaces.WithNamespace(ctx, ns)
 
 		t, err := newTask(id, ns, pid, r.monitor, r.events)

@@ -95,8 +95,8 @@ func (c *libcni) Status() error {
 
 // Setup setups the network in the namespace
 func (c *libcni) Setup(id string, path string, opts ...NamespaceOpts) (*CNIResult, error) {
-	if err:=c.Status();err!=nil{
-		return nil,err
+	if err := c.Status(); err != nil {
+		return nil, err
 	}
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
@@ -117,9 +117,9 @@ func (c *libcni) Setup(id string, path string, opts ...NamespaceOpts) (*CNIResul
 
 // Remove removes the network config from the namespace
 func (c *libcni) Remove(id string, path string, opts ...NamespaceOpts) error {
-	if err:=c.Status();err!=nil{
-           return err
-        }
+	if err := c.Status(); err != nil {
+		return err
+	}
 	ns, err := newNamespace(id, path, opts...)
 	if err != nil {
 		return err

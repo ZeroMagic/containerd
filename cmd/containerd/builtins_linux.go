@@ -22,7 +22,7 @@ import (
 	_ "github.com/containerd/containerd/runtime/linux"
 	_ "github.com/containerd/containerd/snapshots/native"
 	_ "github.com/containerd/containerd/snapshots/overlay"
-    _ "github.com/containerd/zfs"
-    
-    _ "github.com/containerd/containerd/runtime/kata"
+	_ "github.com/containerd/zfs"
+
+	_ "github.com/containerd/containerd/runtime/kata"
 )

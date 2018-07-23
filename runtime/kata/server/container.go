@@ -32,7 +32,7 @@ import (
 // CreateContainer creates a kata-runtime container
 func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 
-	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
+	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/config.json"
 	configJ, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		fmt.Print(err)
@@ -47,12 +47,12 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 	// TODO: namespace would be solved
 	containerConfig := vc.ContainerConfig{
 		ID:     id,
-		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/rootfs",
+		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
 		// Cmd:    cmd,
 		Annotations: map[string]string{
-			annotations.ConfigJSONKey:	str,
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
-			annotations.ContainerTypeKey:	 string(vc.PodContainer),
+			annotations.ConfigJSONKey:    str,
+			annotations.BundlePathKey:    "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id,
+			annotations.ContainerTypeKey: string(vc.PodContainer),
 		},
 	}
 

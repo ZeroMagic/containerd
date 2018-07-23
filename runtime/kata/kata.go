@@ -17,9 +17,7 @@ limitations under the License.
 package kata
 
 import (
-
 	"github.com/containerd/containerd/plugin"
-
 )
 
 const (

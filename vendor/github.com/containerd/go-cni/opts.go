@@ -83,7 +83,7 @@ func WithLoNetwork() LoadOption {
 
 		c.Lock()
 		defer c.Unlock()
-		c.networks = append(c.networks,&Network{
+		c.networks = append(c.networks, &Network{
 			cni:    c.cniConfig,
 			config: loConfig,
 			ifName: "lo",
@@ -151,7 +151,7 @@ func WithConfListFile(fileName string) LoadOption {
 		}
 		c.Lock()
 		defer c.Unlock()
-		c.networks = append(c.networks,&Network{
+		c.networks = append(c.networks, &Network{
 			cni:    c.cniConfig,
 			config: confList,
 			ifName: getIfName(c.prefix, 0),

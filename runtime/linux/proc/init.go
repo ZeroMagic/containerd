@@ -42,7 +42,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/sirupsen/logrus"
-
 )
 
 // InitPidFile name of the file that contains the init pid

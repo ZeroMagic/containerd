@@ -112,10 +112,10 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 	}
 
 	p := &Init{
-		id:  config.ID,
-		pid: pid,
-		sandboxID:	config.SandboxID,
-		containerType:	config.ContainerType,
+		id:            config.ID,
+		pid:           pid,
+		sandboxID:     config.SandboxID,
+		containerType: config.ContainerType,
 		stdio: Stdio{
 			Stdin:    config.Stdin,
 			Stdout:   config.Stdout,
@@ -133,13 +133,13 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 	p.initState = &createdState{p: p}
 
 	// create kata container
-	
+
 	if p.containerType == annotations.ContainerTypeSandbox {
 		p.sandbox, err = server.CreateSandbox(config.ID)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create sandbox")
-		} 
-	}else if p.containerType == annotations.ContainerTypeContainer {
+		}
+	} else if p.containerType == annotations.ContainerTypeContainer {
 		p.sandbox, p.container, err = server.CreateContainer(p.id, p.sandboxID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create container")
@@ -325,8 +325,8 @@ func (p *Init) start(ctx context.Context) error {
 		p.sandbox, err = server.StartSandbox(p.id)
 		if err != nil {
 			return errors.Wrap(err, "failed to start sandbox")
-		} 
-	}else if p.containerType == annotations.ContainerTypeContainer {
+		}
+	} else if p.containerType == annotations.ContainerTypeContainer {
 		p.container, err = server.StartContainer(p.id, p.sandboxID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start container")
@@ -334,7 +334,7 @@ func (p *Init) start(ctx context.Context) error {
 	} else {
 		return errors.New(ErrContainerType)
 	}
-	
+
 	return nil
 }
 

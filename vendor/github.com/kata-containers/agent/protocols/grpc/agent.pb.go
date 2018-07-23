@@ -3096,7 +3096,7 @@ func (m *MemoryStats) MarshalTo(dAtA []byte) (int, error) {
 		i++
 	}
 	if len(m.Stats) > 0 {
-		for k, _ := range m.Stats {
+		for k := range m.Stats {
 			dAtA[i] = 0x32
 			i++
 			v := m.Stats[k]
@@ -3356,7 +3356,7 @@ func (m *CgroupStats) MarshalTo(dAtA []byte) (int, error) {
 		i += n16
 	}
 	if len(m.HugetlbStats) > 0 {
-		for k, _ := range m.HugetlbStats {
+		for k := range m.HugetlbStats {
 			dAtA[i] = 0x2a
 			i++
 			v := m.HugetlbStats[k]

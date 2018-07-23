@@ -43,11 +43,11 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 		},
 	}
 
-	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id+"/config.json"
+	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/config.json"
 	configJ, err := ioutil.ReadFile(configFile)
-    if err != nil {
-        fmt.Print(err)
-    }
+	if err != nil {
+		fmt.Print(err)
+	}
 	str := string(configJ)
 	str = strings.Replace(str, "bounding", "Bounding", -1)
 	str = strings.Replace(str, "effective", "Effective", -1)
@@ -81,8 +81,8 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 				"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
 			},
 		},
-		User:	"0",
-		PrimaryGroup:	"0",
+		User:            "0",
+		PrimaryGroup:    "0",
 		NoNewPrivileges: true,
 	}
 
@@ -92,59 +92,59 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 		RootFs: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/rootfs",
 		Cmd:    cmd,
 		Annotations: map[string]string{
-			annotations.ConfigJSONKey:	str,
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
-			annotations.ContainerTypeKey:	string(vc.PodSandbox),
+			annotations.ConfigJSONKey:    str,
+			annotations.BundlePathKey:    "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id,
+			annotations.ContainerTypeKey: string(vc.PodSandbox),
 		},
-		Mounts: 	[]vc.Mount{
+		Mounts: []vc.Mount{
 			{
 				Source:      "proc",
 				Destination: "/proc",
 				Type:        "proc",
 				Options:     nil,
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 			{
 				Source:      "tmpfs",
 				Destination: "/dev",
 				Type:        "tmpfs",
 				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 			{
 				Source:      "devpts",
 				Destination: "/dev/pts",
 				Type:        "devpts",
 				Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 			{
 				Source:      "shm",
 				Destination: "/dev/shm",
 				Type:        "tmpfs",
 				Options:     []string{"nosuid", "noexec", "nodev", "mode=1777", "size=65536k"},
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 			{
 				Source:      "mqueue",
 				Destination: "/dev/mqueue",
 				Type:        "mqueue",
 				Options:     []string{"nosuid", "noexec", "nodev"},
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 			{
 				Source:      "sysfs",
 				Destination: "/sys",
 				Type:        "sysfs",
 				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 			{
 				Source:      "tmpfs",
 				Destination: "/run",
 				Type:        "tmpfs",
 				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
-				ReadOnly:	false,
+				ReadOnly:    false,
 			},
 		},
 	}
@@ -152,15 +152,15 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 	// Sets the hypervisor configuration.
 	hypervisorConfig := vc.HypervisorConfig{
 		KernelParams: []vc.Param{
-			vc.Param{
-				Key:	"agent.log",
-				Value:	"debug",
+			{
+				Key:   "agent.log",
+				Value: "debug",
 			},
-			vc.Param{
-				Key:	"qemu.cmdline",
-				Value:	"-D <logfile>",
+			{
+				Key:   "qemu.cmdline",
+				Value: "-D <logfile>",
 			},
-			vc.Param{
+			{
 				Key:   "ip",
 				Value: "::::::" + id + "::off::",
 			},
@@ -211,25 +211,25 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 		AgentType:   vc.KataContainersAgent,
 		AgentConfig: agConfig,
 
-		ProxyType: vc.KataBuiltInProxyType,
+		ProxyType:   vc.KataBuiltInProxyType,
 		ProxyConfig: vc.ProxyConfig{},
 
-		ShimType: vc.KataBuiltInShimType,
+		ShimType:   vc.KataBuiltInShimType,
 		ShimConfig: vc.ShimConfig{},
 
-		NetworkModel:	vc.CNMNetworkModel,
-		NetworkConfig:	vc.NetworkConfig{
-			NumInterfaces:		1,
-			InterworkingModel:	2,
+		NetworkModel: vc.CNMNetworkModel,
+		NetworkConfig: vc.NetworkConfig{
+			NumInterfaces:     1,
+			InterworkingModel: 2,
 		},
 
 		Containers: []vc.ContainerConfig{container},
 
 		Annotations: map[string]string{
-			annotations.BundlePathKey:	"/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/"+id,
+			annotations.BundlePathKey: "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id,
 		},
 
-		ShmSize:	uint64(67108864),
+		ShmSize:    uint64(67108864),
 		SharePidNs: false,
 	}
 

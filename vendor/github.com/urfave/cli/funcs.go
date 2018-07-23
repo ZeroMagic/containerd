@@ -38,4 +38,3 @@ type FlagNamePrefixFunc func(fullName, placeholder string) string
 // FlagEnvHintFunc is used by the default FlagStringFunc to annotate flag help
 // with the environment variable details.
 type FlagEnvHintFunc func(envVar, str string) string
-

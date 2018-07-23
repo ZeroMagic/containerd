@@ -2800,7 +2800,7 @@ func (m *Spec) MarshalTo(dAtA []byte) (int, error) {
 		i += n3
 	}
 	if len(m.Annotations) > 0 {
-		for k, _ := range m.Annotations {
+		for k := range m.Annotations {
 			dAtA[i] = 0x3a
 			i++
 			v := m.Annotations[k]
@@ -3424,7 +3424,7 @@ func (m *Linux) MarshalTo(dAtA []byte) (int, error) {
 		}
 	}
 	if len(m.Sysctl) > 0 {
-		for k, _ := range m.Sysctl {
+		for k := range m.Sysctl {
 			dAtA[i] = 0x1a
 			i++
 			v := m.Sysctl[k]

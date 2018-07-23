@@ -45,8 +45,8 @@ type Task struct {
 	containerType string
 	sandboxID     string
 
-	container	*vc.Container
-	sandbox 	*vc.Sandbox
+	container *vc.Container
+	sandbox   *vc.Sandbox
 
 	monitor runtime.TaskMonitor
 	events  *exchange.Exchange
