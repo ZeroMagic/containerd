@@ -355,13 +355,7 @@ func (p *Init) start(ctx context.Context) error {
 func (p *Init) delete(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Infof("[init] delete %s", p.id)
 
-	sandbox, err := vc.StopSandbox(p.sandboxID)
-	if err != nil {
-		return errors.Wrap(err, "failed to stop sandbox")
-	}
-	p.sandbox = sandbox.(*vc.Sandbox)
-
-	_, err = vc.DeleteSandbox(p.sandboxID)
+	_, err := vc.DeleteSandbox(p.sandboxID)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete sandbox")
 	}
@@ -377,10 +371,16 @@ func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 		return errors.Wrapf(err, "failed to kill container")
 	}
 	_, err = vc.StopContainer(p.sandboxID, p.id)
-		if err != nil {
-			errors.Wrap(err, "failed to stop container")
-			return err
-		}
+	if err != nil {
+		errors.Wrap(err, "failed to stop container")
+		return err
+	}
+
+	sandbox, err := vc.StopSandbox(p.sandboxID)
+	if err != nil {
+		return errors.Wrap(err, "failed to stop sandbox")
+	}
+	p.sandbox = sandbox.(*vc.Sandbox)
 
 	logrus.FieldLogger(logrus.New()).Infof("[init] kill %s end", p.id)
 
