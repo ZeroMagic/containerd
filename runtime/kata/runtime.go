@@ -267,15 +267,6 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		return nil, err
 	}
 
-	// //Notify Client
-	// r.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
-	// 	ContainerID: taskID,
-	// 	ID:          taskID,
-	// 	Pid:         uint32(10244),
-	// 	ExitStatus:  128 + uint32(unix.SIGKILL),
-	// 	ExitedAt:    time.Now(),
-	// })
-
 	// remove the task
 	r.tasks.Delete(ctx, taskID)
 

@@ -16,7 +16,6 @@ import (
 	"syscall"
 
 	"github.com/kata-containers/runtime/virtcontainers/device/drivers"
-	"github.com/sirupsen/logrus"
 )
 
 // DefaultShmSize is the default shm size to be used in case host
@@ -133,7 +132,6 @@ func getDeviceForPath(path string) (device, error) {
 
 		err := syscall.Lstat(parentDir, &parentStat)
 		if err != nil {
-			logrus.FieldLogger(logrus.New()).Info("[vendor-kata-runtime] getDeviceForPath Failed")
 			return device{}, err
 		}
 

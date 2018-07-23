@@ -1000,6 +1000,10 @@ func (c *Container) hotplugDrive() error {
 		return err
 	}
 
+	c.Logger().WithFields(logrus.Fields{
+		"isDM": isDM,
+	}).Info("checkStorageDriver")
+
 	if !isDM {
 		return nil
 	}
