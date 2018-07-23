@@ -79,7 +79,7 @@ func (p *Process) State(ctx context.Context) (runtime.State, error) {
 
 // Kill signals a container
 func (p *Process) Kill(ctx context.Context, signal uint32, _ bool) error {
-	logrus.FieldLogger(logrus.New()).Info("PPPP process kill")
+	logrus.FieldLogger(logrus.New()).Info("[Process] kill")
 	process := p.t.processList[p.t.id]
 	err := process.Kill(ctx, signal, false)
 	if err != nil {
@@ -118,7 +118,7 @@ func (p *Process) CloseIO(ctx context.Context) error {
 
 // Start the container's user defined process
 func (p *Process) Start(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("PPPP process start")
+	logrus.FieldLogger(logrus.New()).Info("[Process] start")
 	process := p.t.processList[p.id]
 	err := process.(*proc.Init).Start(ctx)
 	if err != nil {
@@ -136,7 +136,7 @@ func (p *Process) Start(ctx context.Context) error {
 
 // Wait for the process to exit
 func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("PPPP process wait")
+	logrus.FieldLogger(logrus.New()).Info("[Pprocess] wait")
 	init := p.t.processList[p.t.id]
 	init.Wait(ctx)
 

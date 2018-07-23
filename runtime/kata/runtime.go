@@ -203,18 +203,8 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	if err := r.tasks.Add(ctx, t); err != nil {
 		return nil, err
 	}
-	// 7. after the task is created, add it to the monitor if it has a cgroup
-	// this can be different on a checkpoint/restore
-	// if t.cg != nil {
-	// 	if err = r.monitor.Monitor(t); err != nil {
-	// 		if _, err := r.Delete(ctx, t); err != nil {
-	// 			log.G(ctx).WithError(err).Error("deleting task after failed monitor")
-	// 		}
-	// 		return nil, err
-	// 	}
-	// }
 
-	logrus.FieldLogger(logrus.New()).Info("RR--Runtime create a task Successfully")
+	logrus.FieldLogger(logrus.New()).Info("[Runtime] create a task Successfully")
 
 	// 9. publish create event
 	r.events.Publish(ctx, runtime.TaskCreateEventTopic, &eventstypes.TaskCreate{
@@ -270,7 +260,7 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		}).Warnf("unmount task rootfs")
 	}
 
-	logrus.FieldLogger(logrus.New()).Infof("RR--Runtime Delete task %v", taskID)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] Delete task %v", taskID)
 	// delete process
 	p := t.(*Task).GetProcess(taskID)
 	if err := p.Delete(ctx); err != nil {

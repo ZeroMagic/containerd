@@ -72,7 +72,6 @@ func (t *Task) ID() string {
 
 // Info returns task information about the runtime and namespace
 func (t *Task) Info() runtime.TaskInfo {
-	// logrus.FieldLogger(logrus.New()).Info("task Info")
 	return runtime.TaskInfo{
 		ID:        t.id,
 		Runtime:   pluginID,
@@ -82,7 +81,7 @@ func (t *Task) Info() runtime.TaskInfo {
 
 // Start the task
 func (t *Task) Start(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("TTT task Start")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Start %s", t.id)
 
 	t.processList[t.id].(*proc.Init).Start(ctx)
 
@@ -95,7 +94,7 @@ func (t *Task) Start(ctx context.Context) error {
 
 // State returns runtime information for the task
 func (t *Task) State(ctx context.Context) (runtime.State, error) {
-	logrus.FieldLogger(logrus.New()).Infof("kata task %v State", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] State %s", t.id)
 	p := t.processList[t.id]
 
 	state, err := p.Status(ctx)
@@ -114,18 +113,8 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 	case string(vc.StateStopped):
 		status = runtime.StoppedStatus
 	}
-	logrus.FieldLogger(logrus.New()).Infof("TTT task State: %v", state)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] %s State: %v", t.id, state)
 	stdio := p.Stdio()
-	// logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
-	// 	"Status":     status,
-	// 	"Pid":        t.pid,
-	// 	"Stdin":      stdio.Stdin,
-	// 	"Stdout":     stdio.Stdout,
-	// 	"Stderr":     stdio.Stderr,
-	// 	"Terminal":   stdio.Terminal,
-	// 	"ExitStatus": uint32(p.ExitStatus()),
-	// 	"ExitedAt":   p.ExitedAt(),
-	// }).Info("Container State Successfully")
 
 	return runtime.State{
 		Status:     status,

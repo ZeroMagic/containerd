@@ -150,6 +150,8 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 
 	// TODO(ZeroMagic): create with checkpoint
 
+	logrus.FieldLogger(logrus.New()).Infof("[Init] New Init %s Successfully", config.ID)
+
 	success = true
 	return p, nil
 }
@@ -199,7 +201,7 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 		}
 		return "", errors.Wrap(err, "OCI runtime state failed")
 	}
-	logrus.FieldLogger(logrus.New()).Infof("container status: %v", status.State.State)
+	logrus.FieldLogger(logrus.New()).Infof("[Init] container status: %v", status.State.State)
 	return string(status.State.State), nil
 }
 
@@ -308,7 +310,7 @@ func (p *Init) Wait(ctx context.Context) error {
 	// after exiting process, the container will be stopped.
 	_, err = vc.StopContainer(p.sandboxID, p.id)
 	if err != nil {
-		logrus.FieldLogger(logrus.New()).Errorf("failed to stop container, %v", err)
+		logrus.FieldLogger(logrus.New()).Infof("[Init] failed to stop container, %v", err)
 		return err
 	}
 
@@ -320,6 +322,7 @@ func (p *Init) resize(ws console.WinSize) error {
 }
 
 func (p *Init) start(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[Init] start container %s", p.id)
 	var err error
 	if p.containerType == annotations.ContainerTypeSandbox {
 		p.sandbox, err = server.StartSandbox(p.id)
@@ -339,7 +342,7 @@ func (p *Init) start(ctx context.Context) error {
 }
 
 func (p *Init) delete(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Infof("init delete %v", p.id)
+	logrus.FieldLogger(logrus.New()).Infof("[init] delete %s", p.id)
 
 	_, err := vc.StopSandbox(p.sandbox.ID())
 	if err != nil {
