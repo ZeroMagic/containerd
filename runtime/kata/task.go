@@ -124,13 +124,13 @@ func (t *Task) State(ctx context.Context) (runtime.State, error) {
 		Stderr:     stdio.Stderr,
 		Terminal:   stdio.Terminal,
 		ExitStatus: uint32(p.ExitStatus()),
-		ExitedAt:   p.ExitedAt(),
+		ExitedAt:   time.Now(),
 	}, nil
 }
 
 // Pause pauses the container process
 func (t *Task) Pause(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task Pause")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Pause")
 	p := t.processList[t.id]
 	err := p.(*proc.Init).Pause(ctx)
 	if err != nil {
@@ -142,7 +142,7 @@ func (t *Task) Pause(ctx context.Context) error {
 
 // Resume unpauses the container process
 func (t *Task) Resume(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task Resume")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Resume")
 	p := t.processList[t.id]
 	err := p.(*proc.Init).Resume(ctx)
 	if err != nil {
@@ -154,7 +154,7 @@ func (t *Task) Resume(ctx context.Context) error {
 
 // Exec adds a process into the container
 func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runtime.Process, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Exec")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Exec")
 	p := t.processList[t.id]
 	conf := &proc.ExecConfig{
 		ID:       id,
@@ -178,19 +178,19 @@ func (t *Task) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runt
 
 // Pids returns all pids
 func (t *Task) Pids(ctx context.Context) ([]runtime.ProcessInfo, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Pids")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Pids")
 	return nil, fmt.Errorf("task pids not implemented")
 }
 
 // Checkpoint checkpoints a container to an image with live system data
 func (t *Task) Checkpoint(ctx context.Context, path string, options *types.Any) error {
-	logrus.FieldLogger(logrus.New()).Info("task Checkpoint")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Checkpoint")
 	return fmt.Errorf("task checkpoint not implemented")
 }
 
 // DeleteProcess deletes a specific exec process via its id
 func (t *Task) DeleteProcess(ctx context.Context, id string) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("task DeleteProcess")
+	logrus.FieldLogger(logrus.New()).Info("[Task] DeleteProcess")
 	p := t.processList[t.id]
 	err := p.(*proc.ExecProcess).Delete(ctx)
 	if err != nil {
@@ -206,13 +206,13 @@ func (t *Task) DeleteProcess(ctx context.Context, id string) (*runtime.Exit, err
 
 // Update sets the provided resources to a running task
 func (t *Task) Update(ctx context.Context, resources *types.Any) error {
-	logrus.FieldLogger(logrus.New()).Info("task Update")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Update")
 	return fmt.Errorf("task update not implemented")
 }
 
 // Process returns a process within the task for the provided id
 func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Process")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Process")
 	p := &Process{
 		id: id,
 		t:  t,
@@ -225,7 +225,7 @@ func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) 
 
 // Metrics returns runtime specific metrics for a task
 func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
-	logrus.FieldLogger(logrus.New()).Info("task Metrics")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Metrics")
 	p := t.processList[t.id]
 	stats, err := p.(*proc.Init).Metrics(ctx)
 	if err != nil {
@@ -237,7 +237,7 @@ func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
 
 // CloseIO closes the provided IO on the task
 func (t *Task) CloseIO(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("task CloseIO")
+	logrus.FieldLogger(logrus.New()).Info("[Task] CloseIO")
 	process := t.processList[t.id]
 	if stdin := process.Stdin(); stdin != nil {
 		if err := stdin.Close(); err != nil {
@@ -249,7 +249,7 @@ func (t *Task) CloseIO(ctx context.Context) error {
 
 // Kill the task using the provided signal
 func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
-	logrus.FieldLogger(logrus.New()).Info("task Kill")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Kill")
 	p := t.processList[t.id]
 	err := p.Kill(ctx, signal, all)
 	if err != nil {
@@ -278,7 +278,7 @@ func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 
 // Wait for the task to exit returning the status and timestamp
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("TTT task Wait")
+	logrus.FieldLogger(logrus.New()).Info("[Task] Wait")
 	p := t.processList[t.id]
 	p.Wait(ctx)
 	p.SetExited(0)

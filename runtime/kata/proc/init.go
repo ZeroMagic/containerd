@@ -218,7 +218,7 @@ func (p *Init) Wait(ctx context.Context) error {
 
 	// create local stdio
 	var (
-		localStdout io.WriteCloser //, localStderr io.WriteCloser
+		localStdout io.WriteCloser // localStderr io.WriteCloser
 		localStdin  io.ReadCloser
 		wg          sync.WaitGroup
 	)
@@ -308,11 +308,11 @@ func (p *Init) Wait(ctx context.Context) error {
 	p.exitStatus = int(exitCode)
 
 	// after exiting process, the container will be stopped.
-	_, err = vc.StopContainer(p.sandboxID, p.id)
-	if err != nil {
-		logrus.FieldLogger(logrus.New()).Infof("[Init] failed to stop container, %v", err)
-		return err
-	}
+	// _, err = vc.StopContainer(p.sandboxID, p.id)
+	// if err != nil {
+	// 	logrus.FieldLogger(logrus.New()).Infof("[Init] failed to stop container, %v", err)
+	// 	return err
+	// }
 
 	return nil
 }
@@ -363,6 +363,13 @@ func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 	err := server.KillContainer(p.sandboxID, p.id, syscall.Signal(signal), all)
 	if err != nil {
 		return errors.Wrap(err, "failed to kill container")
+	}
+	
+	if all == true {
+		_, err := vc.StopSandbox(p.sandboxID)
+		if err != nil {
+			return errors.Wrap(err, "failed to stop sandbox")
+		}
 	}
 
 	return nil

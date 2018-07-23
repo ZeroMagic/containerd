@@ -260,7 +260,7 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		}).Warnf("unmount task rootfs")
 	}
 
-	logrus.FieldLogger(logrus.New()).Infof("[Runtime] Delete task %v", taskID)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] Delete task %s", taskID)
 	// delete process
 	p := t.(*Task).GetProcess(taskID)
 	if err := p.Delete(ctx); err != nil {
@@ -268,13 +268,12 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 	}
 
 	// Notify Client
-	exitedAt := time.Now().UTC()
 	r.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
 		ContainerID: taskID,
 		ID:          taskID,
 		Pid:         uint32(10244),
 		ExitStatus:  128 + uint32(unix.SIGKILL),
-		ExitedAt:    exitedAt,
+		ExitedAt:    time.Now(),
 	})
 
 	// remove the task
@@ -289,18 +288,18 @@ func (r *Runtime) Delete(ctx context.Context, t runtime.Task) (*runtime.Exit, er
 		ContainerID: taskID,
 		Pid:         uint32(10244),
 		ExitStatus:  128 + uint32(unix.SIGKILL),
-		ExitedAt:    exitedAt,
+		ExitedAt:    time.Now(),
 	})
 
 	return &runtime.Exit{
 		Pid:       uint32(p.Pid()),
 		Status:    uint32(p.ExitStatus()),
-		Timestamp: p.ExitedAt(),
+		Timestamp: time.Now(),
 	}, nil
 }
 
 func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("runtime %v, restoreTasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %s, restoreTasks", r.state)
 	dir, err := ioutil.ReadDir(r.state)
 	if err != nil {
 		return nil, err
@@ -322,7 +321,7 @@ func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
 }
 
 func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
-	logrus.FieldLogger(logrus.New()).Infof("runtime %v, loadTasks", r.state)
+	logrus.FieldLogger(logrus.New()).Infof("[Runtime] %s, loadTasks", r.state)
 	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
 	if err != nil {
 		return nil, err
