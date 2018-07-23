@@ -81,7 +81,7 @@ func (t *Task) Info() runtime.TaskInfo {
 
 // Start the task
 func (t *Task) Start(ctx context.Context) error {
-	logrus.FieldLogger(logrus.New()).Info("[Task] Start %s", t.id)
+	logrus.FieldLogger(logrus.New()).Infof("[Task] Start %s", t.id)
 
 	t.processList[t.id].(*proc.Init).Start(ctx)
 
