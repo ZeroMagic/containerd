@@ -256,6 +256,15 @@ func (t *Task) Kill(ctx context.Context, signal uint32, all bool) error {
 		return errors.Wrap(err, "task kill error")
 	}
 
+	t.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
+		ContainerID: t.id,
+		ID:          t.id,
+		Pid:         uint32(10244),
+		ExitStatus:  128 + signal,
+		ExitedAt:    time.Now(),
+	})
+	logrus.FieldLogger(logrus.New()).Info("[Task] Kill end")
+
 	return nil
 }
 
@@ -280,12 +289,15 @@ func (t *Task) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 func (t *Task) Wait(ctx context.Context) (*runtime.Exit, error) {
 	logrus.FieldLogger(logrus.New()).Info("[Task] Wait")
 	p := t.processList[t.id]
-	p.Wait(ctx)
-	p.SetExited(0)
+	exitCode, err := p.Wait(ctx)
+	if err != nil {
+		return &runtime.Exit{}, errors.Wrap(err, "task wait error")
+	}
+	p.SetExited(exitCode)
 	return &runtime.Exit{
 		Pid:       t.pid,
 		Status:    uint32(p.ExitStatus()),
-		Timestamp: time.Time{},
+		Timestamp: time.Now(),
 	}, nil
 }
 

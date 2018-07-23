@@ -58,7 +58,7 @@ type Init struct {
 	initState
 	mu sync.Mutex
 
-	waitBlock chan struct{}
+	// waitBlock chan struct{}
 
 	workDir string
 
@@ -126,7 +126,7 @@ func NewInit(ctx context.Context, path, workDir, namespace string, pid int, conf
 		bundle:     path,
 		workDir:    workDir,
 		exitStatus: 0,
-		waitBlock:  make(chan struct{}),
+		// waitBlock:  make(chan struct{}),
 		IoUID:      os.Getuid(),
 		IoGID:      os.Getuid(),
 	}
@@ -194,23 +194,35 @@ func (p *Init) Stdio() Stdio {
 func (p *Init) Status(ctx context.Context) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	status, err := server.StatusContainer(p.sandboxID, p.id)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "stopped", nil
+
+	if p.containerType == annotations.ContainerTypeSandbox {
+		status, err := vc.StatusSandbox(p.id)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return "stopped", nil
+			}
+			return "", errors.Wrap(err, "failed to get status of sandbox")
 		}
-		return "", errors.Wrap(err, "OCI runtime state failed")
+		logrus.FieldLogger(logrus.New()).Infof("[Init] sandbox status: %v", status.State.State)
+		return string(status.State.State), nil
+	} else {
+		status, err := vc.StatusContainer(p.sandboxID, p.id)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to get status of container")
+		}
+		logrus.FieldLogger(logrus.New()).Infof("[Init] container status: %v", status.State.State)
+		return string(status.State.State), nil
 	}
-	logrus.FieldLogger(logrus.New()).Infof("[Init] container status: %v", status.State.State)
-	return string(status.State.State), nil
+
 }
 
 // Wait for the process to exit
-func (p *Init) Wait(ctx context.Context) error {
+func (p *Init) Wait(ctx context.Context) (int, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[Init] container %s wait", p.id)
 
 	stdin, stdout, stderr, err := p.sandbox.IOStream(p.sandboxID, p.id)
 	if err != nil {
-		return errors.Wrap(err, "failed to get a container's stdio streams from kata")
+		return -1, errors.Wrap(err, "failed to get a container's stdio streams from kata")
 	}
 	p.stdin = stdin
 	p.stdout = stdout
@@ -303,9 +315,8 @@ func (p *Init) Wait(ctx context.Context) error {
 
 	exitCode, err := p.sandbox.WaitProcess(p.sandboxID, p.id)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	p.exitStatus = int(exitCode)
 
 	// after exiting process, the container will be stopped.
 	// _, err = vc.StopContainer(p.sandboxID, p.id)
@@ -314,7 +325,7 @@ func (p *Init) Wait(ctx context.Context) error {
 	// 	return err
 	// }
 
-	return nil
+	return int(exitCode), nil
 }
 
 func (p *Init) resize(ws console.WinSize) error {
@@ -344,13 +355,13 @@ func (p *Init) start(ctx context.Context) error {
 func (p *Init) delete(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Infof("[init] delete %s", p.id)
 
-	_, err := vc.StopSandbox(p.sandbox.ID())
+	sandbox, err := vc.StopSandbox(p.sandboxID)
 	if err != nil {
-		logrus.FieldLogger(logrus.New()).Infof("failed to stop sandbox, %v", err)
 		return errors.Wrap(err, "failed to stop sandbox")
 	}
+	p.sandbox = sandbox.(*vc.Sandbox)
 
-	_, err = vc.DeleteSandbox(p.sandbox.ID())
+	_, err = vc.DeleteSandbox(p.sandboxID)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete sandbox")
 	}
@@ -359,18 +370,19 @@ func (p *Init) delete(ctx context.Context) error {
 }
 
 func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
+	logrus.FieldLogger(logrus.New()).Infof("[init] kill %s", p.id)
 
-	err := server.KillContainer(p.sandboxID, p.id, syscall.Signal(signal), all)
+	err := vc.KillContainer(p.sandboxID, p.id, syscall.Signal(signal), all)
 	if err != nil {
-		return errors.Wrap(err, "failed to kill container")
+		return errors.Wrapf(err, "failed to kill container")
 	}
-	
-	if all == true {
-		_, err := vc.StopSandbox(p.sandboxID)
+	_, err = vc.StopContainer(p.sandboxID, p.id)
 		if err != nil {
-			return errors.Wrap(err, "failed to stop sandbox")
+			errors.Wrap(err, "failed to stop container")
+			return err
 		}
-	}
+
+	logrus.FieldLogger(logrus.New()).Infof("[init] kill %s end", p.id)
 
 	return nil
 }
@@ -460,7 +472,7 @@ func (p *Init) exec(context context.Context, id string, conf *ExecConfig) (Proce
 			Terminal: conf.Terminal,
 		},
 		spec:      spec,
-		waitBlock: make(chan struct{}),
+		// waitBlock: make(chan struct{}),
 	}
 	e.State = &execCreatedState{p: e}
 	return e, nil

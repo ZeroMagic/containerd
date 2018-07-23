@@ -136,7 +136,7 @@ func (p *Process) Start(ctx context.Context) error {
 
 // Wait for the process to exit
 func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
-	logrus.FieldLogger(logrus.New()).Info("[Pprocess] wait")
+	logrus.FieldLogger(logrus.New()).Info("[Process] wait")
 	init := p.t.processList[p.t.id]
 	init.Wait(ctx)
 

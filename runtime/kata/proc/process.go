@@ -57,7 +57,7 @@ type Process interface {
 	// Status returns the process status
 	Status(context.Context) (string, error)
 	// Wait blocks until the process has exited
-	Wait(context.Context) error
+	Wait(context.Context) (int, error)
 }
 
 // State of a process
