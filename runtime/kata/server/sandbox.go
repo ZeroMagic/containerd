@@ -230,7 +230,7 @@ func CreateSandbox(id string) (*vc.Sandbox, error) {
 		},
 
 		ShmSize:    uint64(67108864),
-		SharePidNs: true,
+		SharePidNs: false,
 	}
 
 	sandbox, err := vc.CreateSandbox(sandboxConfig)

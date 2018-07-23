@@ -660,6 +660,7 @@ func createContainer(sandbox *Sandbox, contConfig ContainerConfig) (c *Container
 		return
 	}
 
+	c.Logger().Info("kata-agent createContainer")
 	process, err := sandbox.agent.createContainer(c.sandbox, c)
 	if err != nil {
 		return c, err
@@ -999,10 +1000,6 @@ func (c *Container) hotplugDrive() error {
 	if err != nil {
 		return err
 	}
-
-	c.Logger().WithFields(logrus.Fields{
-		"isDM": isDM,
-	}).Info("checkStorageDriver")
 
 	if !isDM {
 		return nil

@@ -784,6 +784,10 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		return nil, err
 	}
 
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"kataHostSharedDir":     kataHostSharedDir,
+		"kataGuestSharedDir":      kataGuestSharedDir,
+	}).Info("##### kata-agent mountSharedDirMounts #####")
 	// Handle container mounts
 	newMounts, err := c.mountSharedDirMounts(kataHostSharedDir, kataGuestSharedDir)
 	if err != nil {
@@ -796,6 +800,10 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 		return nil, err
 	}
 
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"ctrDevices":     ctrDevices,
+		"c.devices":      c.devices,
+	}).Info("##### kata-agent appendDevices #####")
 	// Append container devices for block devices passed with --device.
 	ctrDevices = k.appendDevices(ctrDevices, c.devices)
 
@@ -818,6 +826,9 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 	// We need to give the OCI spec our absolute rootfs path in the guest.
 	grpcSpec.Root.Path = rootPath
 
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"grpcSpec":     grpcSpec,
+	}).Info("##### kata-agent handlePidNamespace #####")
 	sharedPidNs, err := k.handlePidNamespace(grpcSpec, sandbox)
 	if err != nil {
 		return nil, err
@@ -827,6 +838,7 @@ func (k *kataAgent) createContainer(sandbox *Sandbox, c *Container) (p *Process,
 	// irrelevant information to the agent.
 	constraintGRPCSpec(grpcSpec)
 
+	logrus.FieldLogger(logrus.New()).Info("##### kata-agent handleShm #####")
 	k.handleShm(grpcSpec, sandbox)
 
 	req := &grpc.CreateContainerRequest{

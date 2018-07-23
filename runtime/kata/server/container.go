@@ -43,6 +43,15 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 	str = strings.Replace(str, "inheritable", "Inheritable", -1)
 	str = strings.Replace(str, "permitted", "Permitted", -1)
 	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/pid\"", " ", -1)
+	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/ipc\"", " ", -1)
+	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/uts\"", " ", -1)
+	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/net\"", " ", -1)
+
+	
+	logrus.FieldLogger(logrus.New()).WithFields(logrus.Fields{
+		"containerConfig": str,
+	}).Info("Container OCI Spec")
 
 	// TODO: namespace would be solved
 	containerConfig := vc.ContainerConfig{
@@ -58,7 +67,7 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 
 	sandbox, container, err := vc.CreateContainer(sandboxID, containerConfig)
 	if err != nil {
-		logrus.FieldLogger(logrus.New()).Info("Create Container Failed")
+		logrus.FieldLogger(logrus.New()).Info("Create Container Failed:", err)
 		return nil, nil, errors.Wrapf(err, "Could not create container")
 	}
 
