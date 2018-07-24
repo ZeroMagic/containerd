@@ -19,6 +19,7 @@ package server
 import (
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 	"syscall"
 
@@ -32,6 +33,20 @@ import (
 // CreateContainer creates a kata-runtime container
 func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 
+	criHosts := "/var/lib/containerd/io.containerd.grpc.v1.cri/sandboxes/"+sandboxID+"/hosts"
+	hosts := "/run/kata-containers/shared/sandboxes/"+sandboxID+"/"+id+"-hosts"
+	criResolv := "/var/lib/containerd/io.containerd.grpc.v1.cri/sandboxes/"+sandboxID+"/resolv.conf"
+	resolv := "/run/kata-containers/shared/sandboxes/"+sandboxID+"/"+id+"-resolv.conf"
+
+	command := exec.Command("cp", criHosts, hosts)
+	if err := command.Start(); err != nil {
+        fmt.Print(err)
+	}
+	command = exec.Command("cp", criResolv, resolv)
+	if err := command.Start(); err != nil {
+        fmt.Print(err)
+    }
+
 	configFile := "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id + "/config.json"
 	configJ, err := ioutil.ReadFile(configFile)
 	if err != nil {
@@ -43,6 +58,8 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 	str = strings.Replace(str, "inheritable", "Inheritable", -1)
 	str = strings.Replace(str, "permitted", "Permitted", -1)
 	str = strings.Replace(str, "true", "true,\"Ambient\":null", -1)
+	str = strings.Replace(str, criHosts, hosts, -1)
+	str = strings.Replace(str, criResolv, resolv, -1)
 	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/pid\"", " ", -1)
 	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/ipc\"", " ", -1)
 	str = strings.Replace(str, ",\"path\":\"/proc/10244/ns/uts\"", " ", -1)
@@ -62,6 +79,22 @@ func CreateContainer(id, sandboxID string) (*vc.Sandbox, *vc.Container, error) {
 			annotations.ConfigJSONKey:    str,
 			annotations.BundlePathKey:    "/run/containerd/io.containerd.runtime.v1.kata-runtime/k8s.io/" + id,
 			annotations.ContainerTypeKey: string(vc.PodContainer),
+		},
+		Mounts: 	[]vc.Mount{
+			{
+				Source:      hosts,
+				Destination: "/etc/hosts",
+				Type:        "bind",
+				Options:     []string{"rbind", "rprivate", "rw"},
+				ReadOnly:	false,
+			},
+			{
+				Source:      resolv,
+				Destination: "/etc/resolv.conf",
+				Type:        "bind",
+				Options:     []string{"rbind", "rprivate", "rw"},
+				ReadOnly:	false,
+			},
 		},
 	}
 
