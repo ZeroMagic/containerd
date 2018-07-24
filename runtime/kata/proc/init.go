@@ -355,32 +355,41 @@ func (p *Init) start(ctx context.Context) error {
 func (p *Init) delete(ctx context.Context) error {
 	logrus.FieldLogger(logrus.New()).Infof("[init] delete %s", p.id)
 
-	_, err := vc.DeleteSandbox(p.sandboxID)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete sandbox")
+	if p.containerType == annotations.ContainerTypeSandbox {
+		_, err := vc.DeleteSandbox(p.id)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete sandbox")
+		}
+	} else {
+		_, err := vc.DeleteContainer(p.sandboxID, p.id)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete container")
+		}
 	}
 
 	return nil
 }
 
 func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
-	logrus.FieldLogger(logrus.New()).Infof("[init] kill %s", p.id)
+	logrus.FieldLogger(logrus.New()).Infof("[init] kill %s， signal %d, all %b", p.id)
 
-	err := vc.KillContainer(p.sandboxID, p.id, syscall.Signal(signal), all)
-	if err != nil {
-		return errors.Wrapf(err, "failed to kill container")
-	}
-	_, err = vc.StopContainer(p.sandboxID, p.id)
-	if err != nil {
-		errors.Wrap(err, "failed to stop container")
-		return err
-	}
-
-	sandbox, err := vc.StopSandbox(p.sandboxID)
-	if err != nil {
-		return errors.Wrap(err, "failed to stop sandbox")
-	}
-	p.sandbox = sandbox.(*vc.Sandbox)
+	if p.containerType == annotations.ContainerTypeSandbox {
+		sandbox, err := vc.StopSandbox(p.sandboxID)
+		if err != nil {
+			return errors.Wrap(err, "failed to stop sandbox")
+		}
+		p.sandbox = sandbox.(*vc.Sandbox)
+	} else {
+		err := vc.KillContainer(p.sandboxID, p.id, syscall.Signal(signal), all)
+		if err != nil {
+			return errors.Wrapf(err, "failed to kill container")
+		}
+		_, err = vc.StopContainer(p.sandboxID, p.id)
+		if err != nil {
+			errors.Wrap(err, "failed to stop container")
+			return err
+		}
+	} 
 
 	logrus.FieldLogger(logrus.New()).Infof("[init] kill %s end", p.id)
 

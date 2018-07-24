@@ -22,6 +22,8 @@ import (
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 type initState interface {
@@ -159,6 +161,8 @@ func (s *runningState) Kill(ctx context.Context, sig uint32, all bool) error {
 	if err != nil {
 		return err
 	}
+
+	logrus.FieldLogger(logrus.New()).Infof("[init_state] kill %s", s.p.id)
 
 	if err := s.transition("stopped"); err != nil {
 		panic(err)
