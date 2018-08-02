@@ -96,7 +96,7 @@ func setRuntime() {
 		fmt.Fprintf(os.Stderr, "open shim log %s", err)
 		os.Exit(1)
 	}
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(f)
 	if os.Getenv("GOMAXPROCS") == "" {
 		// If GOMAXPROCS hasn't been set, we default to a value of 2 to reduce
