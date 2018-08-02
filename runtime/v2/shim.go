@@ -35,6 +35,8 @@ import (
 	"github.com/containerd/ttrpc"
 	ptypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
+
+	"github.com/sirupsen/logrus"
 )
 
 func loadAddress(path string) (string, error) {
@@ -340,8 +342,10 @@ func (s *shim) Stats(ctx context.Context) (*ptypes.Any, error) {
 		ID: s.ID(),
 	})
 	if err != nil {
+		logrus.FieldLogger(logrus.New()).Infof("[kata Stats--err]", err)
 		return nil, errdefs.FromGRPC(err)
 	}
+	logrus.FieldLogger(logrus.New()).Infof("[kata Stats--Stats]", response)
 	return response.Stats, nil
 }
 
