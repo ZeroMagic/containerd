@@ -81,6 +81,7 @@ type shim struct {
 }
 
 func (s *shim) Connect(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim connect]")
 	response, err := s.task.Connect(ctx, &task.ConnectRequest{})
 	if err != nil {
 		return err
@@ -90,6 +91,7 @@ func (s *shim) Connect(ctx context.Context) error {
 }
 
 func (s *shim) Shutdown(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim shutdown]")
 	_, err := s.task.Shutdown(ctx, &task.ShutdownRequest{
 		ID: s.ID(),
 	})
@@ -100,6 +102,7 @@ func (s *shim) Shutdown(ctx context.Context) error {
 }
 
 func (s *shim) waitShutdown(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim waitShutdown]")
 	dead := make(chan struct{})
 	go func() {
 		if err := s.Shutdown(ctx); err != nil {
@@ -125,10 +128,12 @@ func (s *shim) Namespace() string {
 }
 
 func (s *shim) Close() error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim close]")
 	return s.client.Close()
 }
 
 func (s *shim) Delete(ctx context.Context) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim delete]")
 	response, err := s.task.Delete(ctx, &task.DeleteRequest{
 		ID: s.ID(),
 	})
@@ -158,6 +163,7 @@ func (s *shim) Delete(ctx context.Context) (*runtime.Exit, error) {
 }
 
 func (s *shim) Create(ctx context.Context, opts runtime.CreateOpts) (runtime.Task, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim create]")
 	topts := opts.TaskOptions
 	if topts == nil {
 		topts = opts.RuntimeOptions
@@ -188,6 +194,7 @@ func (s *shim) Create(ctx context.Context, opts runtime.CreateOpts) (runtime.Tas
 }
 
 func (s *shim) Pause(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim pause]")
 	if _, err := s.task.Pause(ctx, &task.PauseRequest{
 		ID: s.ID(),
 	}); err != nil {
@@ -200,6 +207,7 @@ func (s *shim) Pause(ctx context.Context) error {
 }
 
 func (s *shim) Resume(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim resume]")
 	if _, err := s.task.Resume(ctx, &task.ResumeRequest{
 		ID: s.ID(),
 	}); err != nil {
@@ -212,6 +220,7 @@ func (s *shim) Resume(ctx context.Context) error {
 }
 
 func (s *shim) Start(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim start]")
 	response, err := s.task.Start(ctx, &task.StartRequest{
 		ID: s.ID(),
 	})
@@ -227,6 +236,7 @@ func (s *shim) Start(ctx context.Context) error {
 }
 
 func (s *shim) Kill(ctx context.Context, signal uint32, all bool) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim kill]")
 	if _, err := s.task.Kill(ctx, &task.KillRequest{
 		ID:     s.ID(),
 		Signal: signal,
@@ -238,6 +248,7 @@ func (s *shim) Kill(ctx context.Context, signal uint32, all bool) error {
 }
 
 func (s *shim) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runtime.Process, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim exec]")
 	if err := identifiers.Validate(id); err != nil {
 		return nil, errors.Wrapf(err, "invalid exec id %s", id)
 	}
@@ -260,6 +271,7 @@ func (s *shim) Exec(ctx context.Context, id string, opts runtime.ExecOpts) (runt
 }
 
 func (s *shim) Pids(ctx context.Context) ([]runtime.ProcessInfo, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim pids]")
 	resp, err := s.task.Pids(ctx, &task.PidsRequest{
 		ID: s.ID(),
 	})
@@ -277,6 +289,7 @@ func (s *shim) Pids(ctx context.Context) ([]runtime.ProcessInfo, error) {
 }
 
 func (s *shim) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim ResizePty]")
 	_, err := s.task.ResizePty(ctx, &task.ResizePtyRequest{
 		ID:     s.ID(),
 		Width:  size.Width,
@@ -289,6 +302,7 @@ func (s *shim) ResizePty(ctx context.Context, size runtime.ConsoleSize) error {
 }
 
 func (s *shim) CloseIO(ctx context.Context) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim closeIO]")
 	_, err := s.task.CloseIO(ctx, &task.CloseIORequest{
 		ID:    s.ID(),
 		Stdin: true,
@@ -300,6 +314,7 @@ func (s *shim) CloseIO(ctx context.Context) error {
 }
 
 func (s *shim) Wait(ctx context.Context) (*runtime.Exit, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim Wait]")
 	response, err := s.task.Wait(ctx, &task.WaitRequest{
 		ID: s.ID(),
 	})
@@ -314,6 +329,7 @@ func (s *shim) Wait(ctx context.Context) (*runtime.Exit, error) {
 }
 
 func (s *shim) Checkpoint(ctx context.Context, path string, options *ptypes.Any) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim Checkpoint]")
 	request := &task.CheckpointTaskRequest{
 		Path:    path,
 		Options: options,
@@ -328,6 +344,7 @@ func (s *shim) Checkpoint(ctx context.Context, path string, options *ptypes.Any)
 }
 
 func (s *shim) Update(ctx context.Context, resources *ptypes.Any) error {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim update]")
 	if _, err := s.task.Update(ctx, &task.UpdateTaskRequest{
 		ID:        s.ID(),
 		Resources: resources,
@@ -338,6 +355,7 @@ func (s *shim) Update(ctx context.Context, resources *ptypes.Any) error {
 }
 
 func (s *shim) Stats(ctx context.Context) (*ptypes.Any, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim stats]")
 	response, err := s.task.Stats(ctx, &task.StatsRequest{
 		ID: s.ID(),
 	})
@@ -350,6 +368,7 @@ func (s *shim) Stats(ctx context.Context) (*ptypes.Any, error) {
 }
 
 func (s *shim) Process(ctx context.Context, id string) (runtime.Process, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim Process]")
 	return &process{
 		id:   id,
 		shim: s,
@@ -357,6 +376,7 @@ func (s *shim) Process(ctx context.Context, id string) (runtime.Process, error) 
 }
 
 func (s *shim) State(ctx context.Context) (runtime.State, error) {
+	logrus.FieldLogger(logrus.New()).Infof("[v2 shim State]")
 	response, err := s.task.State(ctx, &task.StateRequest{
 		ID: s.ID(),
 	})
