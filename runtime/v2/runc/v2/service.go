@@ -612,6 +612,22 @@ func (s *service) Stats(ctx context.Context, r *taskAPI.StatsRequest) (*taskAPI.
 	if err != nil {
 		return nil, err
 	}
+
+	// get network Stats
+	s.mu.Lock()
+	p := s.task
+	s.mu.Unlock()
+	if p == nil {
+		return nil, errors.Wrapf(errdefs.ErrFailedPrecondition, "container must be created")
+	}
+	runcStats, err := p.(*proc.Init).Runtime().Stats(ctx, r.ID)
+	if err != nil {
+		logrus.WithError(err).WithField("id", r.ID).Error("failed to get stats by runc command")
+		return nil, err
+	}
+
+	stats.Network = setNetworkStats(runcStats.Network)
+
 	data, err := typeurl.MarshalAny(stats)
 	if err != nil {
 		return nil, err
@@ -750,4 +766,23 @@ func (s *service) initPlatform() error {
 	}
 	s.platform = p
 	return nil
+}
+
+func setNetworkStats(network []runcC.NetworkInterface) []*cgroups.NetworkStat {
+	networkStats := make([]*cgroups.NetworkStat, len(network))
+	for i, v := range network {
+		networkStats[i] = &cgroups.NetworkStat{
+			Name:		v.Name,
+			RxBytes:	v.RxBytes,
+			RxPackets:	v.RxPackets,
+			RxErrors:	v.RxErrors,
+			RxDropped:	v.RxDropped,
+			TxBytes:	v.TxBytes,
+			TxPackets:	v.TxPackets,
+			TxErrors:	v.TxErrors,
+			TxDropped:	v.TxDropped,
+		}
+	}
+
+	return networkStats
 }

@@ -33,6 +33,7 @@ type Stats struct {
 	Pids    Pids               `json:"pids"`
 	Blkio   Blkio              `json:"blkio"`
 	Hugetlb map[string]Hugetlb `json:"hugetlb"`
+	Network []NetworkInterface `json:"network"`
 }
 
 type Hugetlb struct {
@@ -97,4 +98,17 @@ type Memory struct {
 	Kernel    MemoryEntry       `json:"kernel,omitempty"`
 	KernelTCP MemoryEntry       `json:"kernelTCP,omitempty"`
 	Raw       map[string]uint64 `json:"raw,omitempty"`
+}
+
+type NetworkInterface struct {
+	// Name is the name of the network interface.
+	Name string `json:"name,omitempty"`
+	RxBytes   uint64 `json:"rxBytes,omitempty"`
+	RxPackets uint64 `json:"rxPackets,omitempty"`
+	RxErrors  uint64 `json:"rxErrors,omitempty"`
+	RxDropped uint64 `json:"rxDropped,omitempty"`
+	TxBytes   uint64 `json:"txBytes,omitempty"`
+	TxPackets uint64 `json:"txPackets,omitempty"`
+	TxErrors  uint64 `json:"txErrors,omitempty"`
+	TxDropped uint64 `json:"txDropped,omitempty"`
 }
